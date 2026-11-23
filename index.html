@@ -1,0 +1,3020 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PET ADVENTURE – MY PET | Interactive Learning PID</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Fredoka & Nunito for playful, highly legible 2D game UI -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --sky-top: #38bdf8;
+      --sky-bottom: #bae6fd;
+      --grass-light: #4ade80;
+      --grass-dark: #16a34a;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #0f172a;
+      font-family: 'Nunito', sans-serif;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    h1, h2, h3, .font-game {
+      font-family: 'Fredoka', sans-serif;
+      letter-spacing: 0.02em;
+    }
+
+    /* 16:9 Responsive PID Container (1920x1080 target aspect ratio) */
+    #pid-wrapper {
+      width: 100vw;
+      height: 56.25vw; /* 16:9 */
+      max-height: 100vh;
+      max-width: 177.78vh; /* 16:9 */
+      position: relative;
+      overflow: hidden;
+      background: linear-gradient(180deg, #38bdf8 0%, #bae6fd 68%, #4ade80 68%, #22c55e 100%);
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.65);
+      border-radius: 16px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Fullscreen override */
+    :fullscreen #pid-wrapper,
+    :-webkit-full-screen #pid-wrapper {
+      border-radius: 0;
+    }
+
+    /* Decorative Clouds & Hills */
+    .cloud {
+      position: absolute;
+      background: rgba(255, 255, 255, 0.85);
+      border-radius: 9999px;
+      pointer-events: none;
+      z-index: 1;
+      animation: floatCloud linear infinite;
+    }
+    .cloud::before, .cloud::after {
+      content: '';
+      position: absolute;
+      background: rgba(255, 255, 255, 0.85);
+      border-radius: 50%;
+    }
+    @keyframes floatCloud {
+      from { transform: translateX(-250px); }
+      to { transform: translateX(2100px); }
+    }
+
+    /* 3D Tactile Game Buttons */
+    .btn-game {
+      transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.12s ease, filter 0.12s ease;
+      box-shadow: 0 6px 0 rgba(0, 0, 0, 0.25), 0 10px 18px rgba(0,0,0,0.15);
+      cursor: pointer;
+    }
+    .btn-game:hover {
+      filter: brightness(1.05);
+      transform: translateY(-2px);
+    }
+    .btn-game:active {
+      transform: translateY(4px);
+      box-shadow: 0 2px 0 rgba(0, 0, 0, 0.25), 0 4px 8px rgba(0,0,0,0.15);
+    }
+
+    /* Animations */
+    @keyframes bounceSlow {
+      0%, 100% { transform: translateY(0) scale(1); }
+      50% { transform: translateY(-10px) scale(1.03); }
+    }
+    .animate-pet {
+      animation: bounceSlow 2.6s ease-in-out infinite;
+    }
+
+    @keyframes wiggle {
+      0%, 100% { transform: rotate(0deg); }
+      25% { transform: rotate(-6deg); }
+      75% { transform: rotate(6deg); }
+    }
+    .animate-wiggle {
+      animation: wiggle 0.5s ease-in-out;
+    }
+
+    @keyframes popIn {
+      0% { opacity: 0; transform: scale(0.85) translateY(12px); }
+      100% { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    .screen-enter {
+      animation: popIn 0.32s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0.7); }
+      50% { box-shadow: 0 0 0 16px rgba(250, 204, 21, 0); }
+    }
+    .pulse-cta {
+      animation: pulseGlow 2s infinite;
+    }
+
+    /* Custom Scrollbar only for internal small tables like Teacher Assessment */
+    .custom-scroll::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    .custom-scroll::-webkit-scrollbar-track {
+      background: rgba(255,255,255,0.4);
+      border-radius: 8px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: #0284c7;
+      border-radius: 8px;
+    }
+
+    /* Drag & Drop Visuals */
+    .draggable-item {
+      touch-action: none;
+      cursor: grab;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .draggable-item:active {
+      cursor: grabbing;
+      transform: scale(1.08);
+      z-index: 50;
+    }
+    .drop-zone {
+      transition: all 0.2s ease;
+    }
+    .drop-zone.drag-over {
+      transform: scale(1.05);
+      border-color: #facc15 !important;
+      background-color: rgba(254, 240, 138, 0.45) !important;
+    }
+
+    /* Confetti Canvas */
+    #confetti-canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 100;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- MAIN 16:9 PID STAGE -->
+  <div id="pid-wrapper">
+    <!-- Decorative Clouds -->
+    <div class="cloud" style="width: 160px; height: 52px; top: 7%; animation-duration: 55s; animation-delay: -5s;"></div>
+    <div class="cloud" style="width: 220px; height: 68px; top: 15%; animation-duration: 75s; animation-delay: -28s;"></div>
+    <div class="cloud" style="width: 140px; height: 46px; top: 24%; animation-duration: 62s; animation-delay: -42s;"></div>
+
+    <!-- Confetti Overlay -->
+    <canvas id="confetti-canvas"></canvas>
+
+    <!-- TOP NAVIGATION & AUDIO BAR (Always accessible on inner screens) -->
+    <header id="top-bar" class="relative z-30 flex items-center justify-between px-5 py-2.5 bg-white/90 backdrop-blur-md border-b-4 border-sky-300 shadow-md hidden">
+      <!-- Left: Navigation Controls -->
+      <div class="flex items-center gap-2.5">
+        <button onclick="navigateHome()" class="btn-game flex items-center gap-2 px-4 py-2 rounded-2xl bg-amber-400 hover:bg-amber-300 text-slate-900 font-extrabold text-base md:text-lg border-2 border-amber-600" title="Kembali ke Dashboard Utama">
+          <span class="text-xl">🏠</span> <span>HOME</span>
+        </button>
+        <button id="btn-back" onclick="navigateBack()" class="btn-game flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-sky-500 text-white font-extrabold text-base md:text-lg border-2 border-sky-700">
+          <span>⬅️</span> <span>BACK</span>
+        </button>
+        <div class="ml-2 hidden sm:flex flex-col">
+          <span id="header-title" class="font-game text-lg md:text-xl font-bold text-sky-900 leading-tight">PET ADVENTURE</span>
+          <span id="header-subtitle" class="text-xs font-bold text-emerald-700">Grade 3 • Chapter 6: My Pet (Pertemuan 31)</span>
+        </div>
+      </div>
+
+      <!-- Center: Quick Teacher Tools & Badges -->
+      <div class="flex items-center gap-2.5">
+        <button onclick="openBadgesModal()" class="btn-game flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-purple-500 text-white font-extrabold text-sm md:text-base border-2 border-purple-700">
+          <span>🏅</span> <span>REWARDS (<span id="badge-count">0</span>/8)</span>
+        </button>
+        <button onclick="openTeacherControlModal()" class="btn-game flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-rose-500 text-white font-extrabold text-sm md:text-base border-2 border-rose-700">
+          <span>👩‍🏫</span> <span>MODE GURU</span>
+        </button>
+      </div>
+
+      <!-- Right: Audio & Fullscreen Controls -->
+      <div class="flex items-center gap-2">
+        <button id="btn-music" onclick="toggleMusic()" class="btn-game flex items-center gap-1 px-3 py-2 rounded-2xl bg-emerald-500 text-white font-extrabold text-sm border-2 border-emerald-700" title="Musik Latar">
+          <span id="icon-music">🎵</span> <span class="hidden md:inline" id="label-music">MUSIC ON</span>
+        </button>
+        <button id="btn-sfx" onclick="toggleSfx()" class="btn-game flex items-center gap-1 px-3 py-2 rounded-2xl bg-teal-500 text-white font-extrabold text-sm border-2 border-teal-700" title="Efek Suara">
+          <span id="icon-sfx">🔊</span> <span class="hidden md:inline" id="label-sfx">SOUND ON</span>
+        </button>
+        <div class="hidden lg:flex items-center gap-1.5 bg-slate-100 px-2.5 py-1.5 rounded-xl border-2 border-slate-300">
+          <span class="text-xs font-bold text-slate-600">VOL</span>
+          <input id="volume-slider" type="range" min="0" max="1" step="0.05" value="0.6" oninput="updateVolume(this.value)" class="w-16 accent-sky-600 cursor-pointer" />
+        </div>
+        <button onclick="toggleFullscreen()" class="btn-game flex items-center gap-1 px-3.5 py-2 rounded-2xl bg-indigo-600 text-white font-extrabold text-sm border-2 border-indigo-800" title="Layar Penuh PID">
+          <span>⛶</span> <span class="hidden sm:inline">FULLSCREEN</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- MAIN DYNAMIC VIEWPORT -->
+    <main id="app-viewport" class="relative z-20 flex-1 w-full h-full overflow-hidden flex flex-col justify-between p-4 md:p-6">
+      <!-- Content injected dynamically by JS -->
+    </main>
+
+    <!-- GLOBAL FOOTER -->
+    <footer id="app-footer" class="relative z-30 bg-emerald-800/95 text-white px-6 py-1.5 flex items-center justify-between text-xs md:text-sm font-bold border-t-2 border-emerald-500">
+      <div class="flex items-center gap-2">
+        <span class="bg-amber-400 text-slate-900 px-2 py-0.5 rounded-md font-extrabold">PID MEDIA</span>
+        <span>PET ADVENTURE – MY PET</span>
+        <span class="hidden sm:inline text-emerald-200">| Interactive Learning Media for Grade 3</span>
+      </div>
+      <div class="text-amber-300 font-extrabold">
+        Oleh Dindo Noto Sastro, S.Pd.
+      </div>
+    </footer>
+
+    <!-- GLOBAL FEEDBACK TOAST / MODAL OVERLAY -->
+    <div id="feedback-overlay" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs hidden items-center justify-center p-4">
+      <div id="feedback-card" class="bg-white rounded-3xl border-8 border-amber-400 p-8 max-w-xl w-full text-center shadow-2xl transform transition-all">
+        <div id="feedback-emoji" class="text-7xl mb-3">🌟</div>
+        <h2 id="feedback-title" class="font-game text-4xl font-bold text-slate-800 mb-2">AWESOME!</h2>
+        <p id="feedback-msg" class="text-xl font-bold text-slate-600 mb-6">Great job!</p>
+        <button id="feedback-btn" onclick="closeFeedback()" class="btn-game px-8 py-3.5 rounded-2xl bg-emerald-500 text-white font-game text-2xl font-bold border-4 border-emerald-700">
+          CONTINUE ▶️
+        </button>
+      </div>
+    </div>
+
+    <!-- TEACHER CONTROL PANEL MODAL -->
+    <div id="teacher-modal" class="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm hidden items-center justify-center p-4">
+      <div class="bg-white rounded-3xl border-4 border-rose-500 p-6 max-w-3xl w-full shadow-2xl">
+        <div class="flex items-center justify-between border-b-2 border-slate-200 pb-3 mb-4">
+          <h2 class="font-game text-2xl md:text-3xl font-bold text-rose-600 flex items-center gap-2">
+            <span>👩‍🏫</span> PANEL KONTROL GURU (PID SETTINGS)
+          </h2>
+          <button onclick="closeTeacherControlModal()" class="btn-game px-4 py-1.5 rounded-xl bg-slate-200 text-slate-800 font-extrabold">TUTUP ✖</button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
+          <!-- Group Duel Settings -->
+          <div class="bg-sky-50 p-4 rounded-2xl border-2 border-sky-200">
+            <h3 class="font-game text-xl font-bold text-sky-900 mb-3">⚔️ Pengaturan Pet Battle (Duel Kelompok)</h3>
+            <div class="space-y-2.5">
+              <div>
+                <label class="block text-xs font-extrabold text-slate-600 uppercase">Nama Kelompok A (Kiri)</label>
+                <input id="ctrl-team-a" type="text" class="w-full px-3 py-2 rounded-xl border-2 border-sky-300 font-bold text-slate-800" value="RABBIT TEAM" />
+              </div>
+              <div>
+                <label class="block text-xs font-extrabold text-slate-600 uppercase">Nama Kelompok B (Kanan)</label>
+                <input id="ctrl-team-b" type="text" class="w-full px-3 py-2 rounded-xl border-2 border-rose-300 font-bold text-slate-800" value="TIGER TEAM" />
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="block text-xs font-extrabold text-slate-600">Skor Team A</label>
+                  <input id="ctrl-score-a" type="number" class="w-full px-3 py-1.5 rounded-xl border-2 border-slate-300 font-bold" value="0" />
+                </div>
+                <div>
+                  <label class="block text-xs font-extrabold text-slate-600">Skor Team B</label>
+                  <input id="ctrl-score-b" type="number" class="w-full px-3 py-1.5 rounded-xl border-2 border-slate-300 font-bold" value="0" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Timer & Audio Settings -->
+          <div class="bg-amber-50 p-4 rounded-2xl border-2 border-amber-200 flex flex-col justify-between">
+            <div>
+              <h3 class="font-game text-xl font-bold text-amber-900 mb-3">⏱️ Pengaturan Timer & Audio</h3>
+              <div class="space-y-3">
+                <label class="flex items-center justify-between bg-white p-3 rounded-xl border border-amber-300 cursor-pointer">
+                  <span class="font-bold text-slate-800">Aktifkan Timer Permainan</span>
+                  <input id="ctrl-timer-enabled" type="checkbox" checked class="w-6 h-6 accent-emerald-600" />
+                </label>
+                <div>
+                  <label class="block text-xs font-extrabold text-slate-600 uppercase">Durasi Timer Soal (Detik)</label>
+                  <select id="ctrl-timer-sec" class="w-full px-3 py-2 rounded-xl border-2 border-amber-300 font-bold text-slate-800">
+                    <option value="10">10 Detik (Cepat)</option>
+                    <option value="15" selected>15 Detik (Standar PID)</option>
+                    <option value="20">20 Detik (Santai)</option>
+                    <option value="30">30 Detik (Diskusi)</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-xs font-extrabold text-slate-600 uppercase">Kecepatan Suara Pelafalan (TTS)</label>
+                  <select id="ctrl-tts-rate" class="w-full px-3 py-2 rounded-xl border-2 border-amber-300 font-bold text-slate-800">
+                    <option value="0.75">0.75x (Sangat Jelas untuk Kelas 3)</option>
+                    <option value="0.9" selected>0.90x (Normal Edukatif)</option>
+                    <option value="1.05">1.05x (Alami)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-5 flex flex-wrap items-center justify-between gap-3">
+          <button onclick="resetAllProgress()" class="btn-game px-4 py-2.5 rounded-xl bg-red-100 text-red-700 font-extrabold border-2 border-red-300 text-sm">
+            🔄 Reset Semua Skor & Reward
+          </button>
+          <button onclick="saveTeacherSettings()" class="btn-game px-6 py-2.5 rounded-xl bg-emerald-500 text-white font-game text-xl font-bold border-2 border-emerald-700">
+            💾 SIMPAN PENGATURAN
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- REWARD BADGES MODAL -->
+    <div id="badges-modal" class="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm hidden items-center justify-center p-4">
+      <div class="bg-white rounded-3xl border-4 border-purple-500 p-6 max-w-4xl w-full shadow-2xl">
+        <div class="flex items-center justify-between border-b-2 border-slate-200 pb-3 mb-4">
+          <h2 class="font-game text-2xl md:text-3xl font-bold text-purple-700 flex items-center gap-2">
+            <span>🏆</span> CLASSROOM REWARD BADGES
+          </h2>
+          <button onclick="closeBadgesModal()" class="btn-game px-4 py-1.5 rounded-xl bg-slate-200 text-slate-800 font-extrabold">TUTUP ✖</button>
+        </div>
+        <p class="text-slate-600 font-bold mb-4">Klik badge untuk memberikan penghargaan langsung kepada siswa atau kelompok di layar PID!</p>
+        <div id="badges-grid" class="grid grid-cols-2 sm:grid-cols-4 gap-3"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+/**
+ * ============================================================================
+ * 1. DATA KURIKULUM & ASET HEWAN (RPP BAHASA INGGRIS KELAS 3 - CHAPTER 6: MY PET)
+ * ============================================================================
+ */
+const PETS = [
+  { id: 'rabbit', name: 'Rabbit', color: 'White', colorHex: '#ffffff', borderHex: '#cbd5e1', legs: 4, soundWord: 'hop hop', ability: 'jump high and eat carrots', emoji: '🐇' },
+  { id: 'dog', name: 'Dog', color: 'Brown', colorHex: '#92400e', borderHex: '#78350f', legs: 4, soundWord: 'woof woof', ability: 'bark and run fast', emoji: '🐕' },
+  { id: 'cat', name: 'Cat', color: 'Orange', colorHex: '#f97316', borderHex: '#c2410c', legs: 4, soundWord: 'meow meow', ability: 'climb and catch mice', emoji: '🐈' },
+  { id: 'bird', name: 'Bird', color: 'Black and White', colorHex: '#334155', borderHex: '#0f172a', legs: 2, soundWord: 'tweet tweet', ability: 'fly in the sky', emoji: '🐦' },
+  { id: 'fish', name: 'Fish', color: 'Gray', colorHex: '#94a3b8', borderHex: '#475569', legs: 0, soundWord: 'blub blub', ability: 'swim in the water', emoji: '🐟' },
+  { id: 'turtle', name: 'Turtle', color: 'Green', colorHex: '#22c55e', borderHex: '#15803d', legs: 4, soundWord: 'slow and steady', ability: 'walk slowly and carry a shell', emoji: '🐢' },
+  { id: 'hamster', name: 'Hamster', color: 'Yellow', colorHex: '#facc15', borderHex: '#ca8a04', legs: 4, soundWord: 'squeak squeak', ability: 'run on a wheel', emoji: '🐹' },
+  { id: 'parrot', name: 'Parrot', color: 'Purple', colorHex: '#a855f7', borderHex: '#7e22ce', legs: 2, soundWord: 'hello! squawk!', ability: 'talk and mimic words', emoji: '🦜' }
+];
+
+// Hewan tambahan khusus pada ilustrasi panggung "THE PET SHOW" (Section 1)
+const EXTRA_SHOW_PETS = [
+  { id: 'chicken', name: 'Chicken', color: 'Yellow-Brown', colorHex: '#eab308', borderHex: '#a16207', emoji: '🐔', desc: "It's a chicken. It's yellow-brown." },
+  { id: 'duck', name: 'Duck', color: 'Yellow', colorHex: '#fde047', borderHex: '#ca8a04', emoji: '🦆', desc: "It's a duck. It's yellow." }
+];
+
+// Custom High-Appeal Cartoon 2D Vector SVG Generator (mendukung pewarnaan dinamis untuk game Color The Pet!)
+function getPetSVG(petId, overrideFill = null, silhouette = false, sizeClass = "w-32 h-32") {
+  const pet = [...PETS, ...EXTRA_SHOW_PETS].find(p => p.id === petId) || PETS[0];
+  const fill = silhouette ? '#1e293b' : (overrideFill || pet.colorHex);
+  const stroke = silhouette ? '#0f172a' : '#1e293b';
+  const showDetails = !silhouette;
+
+  const svgs = {
+    rabbit: `
+      <svg viewBox="0 0 160 160" class="${sizeClass} drop-shadow-md">
+        <!-- Ears -->
+        <ellipse cx="62" cy="40" rx="12" ry="32" fill="${fill}" stroke="${stroke}" stroke-width="5"/>
+        <ellipse cx="98" cy="40" rx="12" ry="32" fill="${fill}" stroke="${stroke}" stroke-width="5"/>
+        ${showDetails ? `<ellipse cx="62" cy="42" rx="6" ry="22" fill="#fbcfe8"/><ellipse cx="98" cy="42" rx="6" ry="22" fill="#fbcfe8"/>` : ''}
+        <!-- Body -->
+        <ellipse cx="80" cy="122" rx="34" ry="28" fill="${fill}" stroke="${stroke}" stroke-width="5"/>
+        <!-- Head -->
+        <circle cx="80" cy="82" r="32" fill="${fill}" stroke="${stroke}" stroke-width="5"/>
+        ${showDetails ? `
+          <circle cx="68" cy="78" r="4.5" fill="#0f172a"/><circle cx="92" cy="78" r="4.5" fill="#0f172a"/>
+          <circle cx="70" cy="76" r="1.5" fill="#fff"/><circle cx="94" cy="76" r="1.5" fill="#fff"/>
+          <polygon points="75,88 85,88 80,94" fill="#f472b6"/>
+          <path d="M72 96 Q80 103 88 96" fill="none" stroke="#0f172a" stroke-width="3" stroke-linecap="round"/>
+          <circle cx="58" cy="88" r="5" fill="#fda4af" opacity="0.6"/><circle cx="102" cy="88" r="5" fill="#fda4af" opacity="0.6"/>
+        ` : ''}
+      </svg>`,
+    dog: `
+      <svg viewBox="0 0 160 160" class="${sizeClass} drop-shadow-md">
+        <!-- Floppy Ears -->
+        <ellipse cx="42" cy="76" rx="14" ry="28" transform="rotate(15 42 76)" fill="${silhouette ? '#1e293b' : '#451a03'}" stroke="${stroke}" stroke-width="5"/>
+        <ellipse cx="118" cy="76" rx="14" ry="28" transform="rotate(-15 118 76)" fill="${silhouette ? '#1e293b' : '#451a03'}" stroke="${stroke}" stroke-width="5"/>
+        <!-- Body -->
+        <rect x="52" y="102" width="56" height="44" rx="22" fill="${fill}" stroke="${stroke}" stroke-width="5"/>
+        <!-- Head -->
+        <circle cx="80" cy="74" r="34" fill="${fill}" stroke="${stroke}" stroke-width="5"/>
+        ${showDetails ? `
+          <ellipse cx="80" cy="86" rx="16" ry="12" fill="#fef3c7"/>
+          <circle cx="67" cy="68" r="4.5" fill="#0f172a"/><circle cx="93" cy="68" r="4.5" fill="#0f172a"/>
+          <ellipse cx="80" cy="81" rx="7" ry="5" fill="#0f172a"/>
+          <path d="M72 91 Q80 99 88 91" fill="none" stroke="#0f172a" stroke-width="3" stroke-linecap="round"/>
+          <path d="M76 94 Q80 104 84 94" fill="#fb7185"/>
+        ` : ''}
+      </svg>`,
+    cat: `
+      <svg viewBox="0 0 160 160" class="${sizeClass} drop-shadow-md">
+        <!-- Pointy Ears -->
+        <polygon points="44,64 52,24 74,52" fill="${fill}" stroke="${stroke}" stroke-width="5" stroke-linejoin="round"/>
+        <polygon points="116,64 108,24 86,52" fill="${fill}" stroke="${stroke}" stroke-width="5" stroke-linejoin="round"/>
+        <!-- Tail -->
+        <path d="M112 132 Q142 120 134 94" fill="none" stroke="${fill}" stroke-width="12" stroke-linecap="round"/>
+        <path d="M112 132 Q142 120 134 94" fill="none" stroke="${stroke}" stroke-width="4" stroke-linecap="round"/>
+        <!-- Body -->
+        <ellipse cx="80" cy="122" rx="32" ry="26" fill="${fill}" stroke="${stroke}" stroke-width="5"/>
+        <!-- Head -->
+        <circle cx="80" cy="78" r="34" fill="${fill}" stroke="${stroke}" stroke-width="5"/>
+        ${showDetails ? `
+          <circle cx="67" cy="74" r="4.5" fill="#0f172a"/><circle cx="93" cy="74" r="4.5" fill="#0f172a"/>
+          <polygon points="76,83 84,83 80,88" fill="#f43f5e"/>
+          <path d="M72 91 Q80 97 88 91" fill="none" stroke="#0f172a" stroke-width="3" stroke-linecap="round"/>
+          <line x1="36" y1="80" x2="56" y2="83" stroke="#0f172a" stroke-width="2.5"/>
+          <line x1="36" y1="88" x2="56" y2="88" stroke="#0f172a" stroke-width="2.5"/>
+          <line x1="124" y1="80" x2="104" y2="83" stroke="#0f172a" stroke-width="2.5"/>
+          <line x1="124" y1="88" x2="104" y2="88" stroke="#0f172a" stroke-width="2.5"/>
+        ` : ''}
+      </svg>`,
+    bird: `
+      <svg viewBox="0 0 160 160" class="${sizeClass} drop-shadow-md">
+        <!-- Legs -->
+        <line x1="70" y1="125" x2="70" y2="145" stroke="#f59e0b" stroke-width="5" stroke-linecap="round"/>
+        <line x1="90" y1="125" x2="90" y2="145" stroke="#f59e0b" stroke-width="5" stroke-linecap="round"/>
+        <!-- Body -->
+        <ellipse cx="80" cy="90" rx="38" ry="36" fill="${fill}" stroke="${stroke}" stroke-width="5"/>
+        ${showDetails ? `
+          <!-- White Belly for Black and White Bird -->
+          <ellipse cx="80" cy="98" rx="24" ry="24" fill="#f8fafc"/>
+          <!-- Wing -->
+          <ellipse cx="44" cy="92" rx="12" ry="22" transform="rotate(20 44 92)" fill="${fill}" stroke="${stroke}" stroke-width="4"/>
+          <ellipse cx="116" cy="92" rx="12" ry="22" transform="rotate(-20 116 92)" fill="${fill}" stroke="${stroke}" stroke-width="4"/>
+          <circle cx="68" cy="72" r="4.5" fill="#ffffff"/><circle cx="92" cy="72" r="4.5" fill="#ffffff"/>
+          <circle cx="68" cy="72" r="2.5" fill="#0f172a"/><circle cx="92" cy="72" r="2.5" fill="#0f172a"/>
+          <polygon points="72,80 88,80 80,92" fill="#f59e0b" stroke="#0f172a" stroke-width="2.5"/>
+        ` : ''}
+      </svg>`,
+    fish: `
+      <svg viewBox="0 0 160 160" class="${sizeClass} drop-shadow-md">
+        <!-- Tail Fin -->
+        <polygon points="116,80 148,50 148,110" fill="${fill}" stroke="${stroke}" stroke-width="5" stroke-linejoin="round"/>
+        <!-- Top & Bottom Fins -->
+        <polygon points="65,45 92,45 78,24" fill="${fill}" stroke="${stroke}" stroke-width="4" stroke-linejoin="round"/>
+        <polygon points="65,115 92,115 78,136" fill="${fill}" stroke="${stroke}" stroke-width="4" stroke-linejoin="round"/>
+        <!-- Main Body -->
+        <ellipse cx="74" cy="80" rx="50" ry="36" fill="${fill}" stroke="${stroke}" stroke-width="5"/>
+        ${showDetails ? `
+          <circle cx="46" cy="72" r="6" fill="#ffffff" stroke="#0f172a" stroke-width="2"/>
+          <circle cx="45" cy="72" r="3" fill="#0f172a"/>
+          <path d="M62 56 Q72 80 62 104" fill="none" stroke="#0f172a" stroke-width="3"/>
+          <path d="M28 86 Q36 92 44 86" fill="none" stroke="#0f172a" stroke-width="3" stroke-linecap="round"/>
+          <circle cx="16" cy="52" r="5" fill="#e0f2fe" stroke="#38bdf8" stroke-width="2"/>
+          <circle cx="12" cy="36" r="3.5" fill="#e0f2fe" stroke="#38bdf8" stroke-width="2"/>
+        ` : ''}
+      </svg>`,
+    turtle: `
+      <svg viewBox="0 0 160 160" class="${sizeClass} drop-shadow-md">
+        <!-- Legs & Tail -->
+        <ellipse cx="48" cy="122" rx="12" ry="16" fill="${silhouette ? '#1e293b' : '#86efac'}" stroke="${stroke}" stroke-width="4"/>
+        <ellipse cx="112" cy="122" rx="12" ry="16" fill="${silhouette ? '#1e293b' : '#86efac'}" stroke="${stroke}" stroke-width="4"/>
+        <!-- Head -->
+        <circle cx="132" cy="96" r="18" fill="${silhouette ? '#1e293b' : '#86efac'}" stroke="${stroke}" stroke-width="5"/>
+        <!-- Shell -->
+        <path d="M28 112 C28 56, 124 56, 124 112 Z" fill="${fill}" stroke="${stroke}" stroke-width="5"/>
+        <rect x="24" y="108" width="104" height="12" rx="6" fill="${silhouette ? '#1e293b' : '#fde047'}" stroke="${stroke}" stroke-width="4"/>
+        ${showDetails ? `
+          <circle cx="136" cy="92" r="3.5" fill="#0f172a"/>
+          <path d="M132 102 Q138 106 143 101" fill="none" stroke="#0f172a" stroke-width="2.5" stroke-linecap="round"/>
+          <polygon points="76,66 94,76 88,96 64,96 58,76" fill="none" stroke="#14532d" stroke-width="3.5"/>
+        ` : ''}
+      </svg>`,
+    hamster: `
+      <svg viewBox="0 0 160 160" class="${sizeClass} drop-shadow-md">
+        <!-- Round Ears -->
+        <circle cx="48" cy="54" r="14" fill="${fill}" stroke="${stroke}" stroke-width="5"/>
+        <circle cx="112" cy="54" r="14" fill="${fill}" stroke="${stroke}" stroke-width="5"/>
+        <!-- Chubby Body -->
+        <ellipse cx="80" cy="96" rx="46" ry="44" fill="${fill}" stroke="${stroke}" stroke-width="5"/>
+        ${showDetails ? `
+          <ellipse cx="80" cy="108" rx="30" ry="26" fill="#fef9c3"/>
+          <circle cx="64" cy="78" r="5" fill="#0f172a"/><circle cx="96" cy="78" r="5" fill="#0f172a"/>
+          <circle cx="52" cy="88" r="8" fill="#fda4af" opacity="0.75"/>
+          <circle cx="108" cy="88" r="8" fill="#fda4af" opacity="0.75"/>
+          <polygon points="76,86 84,86 80,91" fill="#f43f5e"/>
+          <path d="M73 94 Q80 100 87 94" fill="none" stroke="#0f172a" stroke-width="3" stroke-linecap="round"/>
+        ` : ''}
+      </svg>`,
+    parrot: `
+      <svg viewBox="0 0 160 160" class="${sizeClass} drop-shadow-md">
+        <!-- Crest Feathers -->
+        <path d="M74 34 Q68 14 82 22 Q90 10 92 34" fill="${fill}" stroke="${stroke}" stroke-width="4"/>
+        <!-- Tail -->
+        <polygon points="68,124 92,124 80,152" fill="${fill}" stroke="${stroke}" stroke-width="4"/>
+        <!-- Body -->
+        <ellipse cx="80" cy="84" rx="34" ry="44" fill="${fill}" stroke="${stroke}" stroke-width="5"/>
+        ${showDetails ? `
+          <ellipse cx="64" cy="88" rx="10" ry="24" fill="#c084fc" stroke="#0f172a" stroke-width="3"/>
+          <ellipse cx="96" cy="88" rx="10" ry="24" fill="#c084fc" stroke="#0f172a" stroke-width="3"/>
+          <circle cx="68" cy="64" r="7" fill="#ffffff"/>
+          <circle cx="92" cy="64" r="7" fill="#ffffff"/>
+          <circle cx="68" cy="64" r="3.5" fill="#0f172a"/>
+          <circle cx="92" cy="64" r="3.5" fill="#0f172a"/>
+          <path d="M72 72 Q80 70 88 72 L80 90 Z" fill="#facc15" stroke="#0f172a" stroke-width="3"/>
+        ` : ''}
+      </svg>`,
+    chicken: `
+      <svg viewBox="0 0 160 160" class="${sizeClass} drop-shadow-md">
+        <path d="M70 36 C70 22, 80 22, 80 32 C80 20, 92 22, 90 36" fill="#ef4444" stroke="${stroke}" stroke-width="4"/>
+        <ellipse cx="80" cy="92" rx="38" ry="42" fill="${fill}" stroke="${stroke}" stroke-width="5"/>
+        ${showDetails ? `
+          <circle cx="66" cy="74" r="4.5" fill="#0f172a"/><circle cx="94" cy="74" r="4.5" fill="#0f172a"/>
+          <polygon points="73,82 87,82 80,94" fill="#f97316" stroke="#0f172a" stroke-width="2.5"/>
+          <ellipse cx="80" cy="98" rx="6" ry="8" fill="#ef4444"/>
+        ` : ''}
+      </svg>`,
+    duck: `
+      <svg viewBox="0 0 160 160" class="${sizeClass} drop-shadow-md">
+        <ellipse cx="80" cy="106" rx="42" ry="30" fill="${fill}" stroke="${stroke}" stroke-width="5"/>
+        <circle cx="80" cy="64" r="26" fill="${fill}" stroke="${stroke}" stroke-width="5"/>
+        ${showDetails ? `
+          <circle cx="70" cy="58" r="4" fill="#0f172a"/><circle cx="90" cy="58" r="4" fill="#0f172a"/>
+          <ellipse cx="80" cy="70" rx="14" ry="7" fill="#f97316" stroke="#0f172a" stroke-width="3"/>
+        ` : ''}
+      </svg>`
+  };
+
+  return svgs[petId] || svgs.rabbit;
+}
+
+/**
+ * ============================================================================
+ * 2. BANK SOAL INTERAKTIF (LISTENING, QUIZ, COLOR, SCRAMBLE, READ & CIRCLE, DUEL)
+ * ============================================================================
+ */
+const LISTENING_CHALLENGES = [
+  { text: "It's a pet. It's brown. It has four legs. It can bark. What animal is it?", answer: 'dog', options: ['dog', 'cat', 'fish', 'bird'] },
+  { text: "It's a pet. It's white. It has long ears. It likes carrots. What animal is it?", answer: 'rabbit', options: ['turtle', 'rabbit', 'hamster', 'parrot'] },
+  { text: "It's a pet. It's orange. It says meow. It has four legs. What animal is it?", answer: 'cat', options: ['cat', 'dog', 'fish', 'turtle'] },
+  { text: "It's a pet. It's gray. It lives in the water. It has no legs. What animal is it?", answer: 'fish', options: ['bird', 'hamster', 'fish', 'rabbit'] },
+  { text: "It's a pet. It's green. It walks very slowly. It has a hard shell. What animal is it?", answer: 'turtle', options: ['turtle', 'cat', 'parrot', 'dog'] },
+  { text: "It's a pet. It's black and white. It has two wings and can fly. What animal is it?", answer: 'bird', options: ['fish', 'bird', 'rabbit', 'turtle'] },
+  { text: "It's a pet. It's yellow. It is small and cute. It likes to run on a wheel. What animal is it?", answer: 'hamster', options: ['hamster', 'dog', 'parrot', 'cat'] },
+  { text: "It's a pet. It's purple. It is a colorful bird that can talk. What animal is it?", answer: 'parrot', options: ['fish', 'rabbit', 'parrot', 'turtle'] },
+  { text: "Listen carefully: It's a white rabbit. Which picture is it?", answer: 'rabbit', options: ['cat', 'rabbit', 'dog', 'bird'] },
+  { text: "Listen carefully: It's a green turtle. Which picture is it?", answer: 'turtle', options: ['hamster', 'fish', 'turtle', 'parrot'] }
+];
+
+const QUIZ_QUESTIONS = [
+  { pet: 'cat', q: 'What animal is this?', opts: ['Cat', 'Dog', 'Rabbit', 'Fish'], ans: 'Cat' },
+  { pet: 'dog', q: 'What animal is this?', opts: ['Bird', 'Dog', 'Turtle', 'Hamster'], ans: 'Dog' },
+  { pet: 'rabbit', q: 'What animal is this?', opts: ['Rabbit', 'Cat', 'Parrot', 'Fish'], ans: 'Rabbit' },
+  { pet: 'fish', q: 'What animal is this?', opts: ['Turtle', 'Dog', 'Fish', 'Bird'], ans: 'Fish' },
+  { pet: 'turtle', q: 'What animal is this?', opts: ['Hamster', 'Turtle', 'Cat', 'Rabbit'], ans: 'Turtle' },
+  { pet: 'bird', q: 'What animal is this?', opts: ['Bird', 'Fish', 'Dog', 'Parrot'], ans: 'Bird' },
+  { pet: 'hamster', q: 'What animal is this?', opts: ['Rabbit', 'Cat', 'Hamster', 'Turtle'], ans: 'Hamster' },
+  { pet: 'parrot', q: 'What animal is this?', opts: ['Parrot', 'Bird', 'Fish', 'Dog'], ans: 'Parrot' },
+  { pet: 'rabbit', q: 'What color is the rabbit?', opts: ['White', 'Brown', 'Orange', 'Green'], ans: 'White' },
+  { pet: 'dog', q: 'What color is the dog?', opts: ['Purple', 'Brown', 'Yellow', 'Gray'], ans: 'Brown' },
+  { pet: 'cat', q: 'What color is the cat?', opts: ['Green', 'White', 'Orange', 'Black'], ans: 'Orange' },
+  { pet: 'turtle', q: 'What color is the turtle?', opts: ['Green', 'Yellow', 'Purple', 'Brown'], ans: 'Green' },
+  { pet: 'fish', q: 'What color is the fish?', opts: ['Gray', 'Orange', 'White', 'Green'], ans: 'Gray' },
+  { pet: 'hamster', q: 'What color is the hamster?', opts: ['Yellow', 'Purple', 'Brown', 'Gray'], ans: 'Yellow' },
+  { pet: 'parrot', q: 'What color is the parrot?', opts: ['Purple', 'White', 'Orange', 'Yellow'], ans: 'Purple' }
+];
+
+const COLOR_CHALLENGES = [
+  { pet: 'rabbit', targetColor: 'White', hex: '#ffffff', instruction: 'Color the rabbit white!' },
+  { pet: 'dog', targetColor: 'Brown', hex: '#92400e', instruction: 'Color the dog brown!' },
+  { pet: 'cat', targetColor: 'Orange', hex: '#f97316', instruction: 'Color the cat orange!' },
+  { pet: 'fish', targetColor: 'Gray', hex: '#94a3b8', instruction: 'Color the fish gray!' },
+  { pet: 'turtle', targetColor: 'Green', hex: '#22c55e', instruction: 'Color the turtle green!' },
+  { pet: 'hamster', targetColor: 'Yellow', hex: '#facc15', instruction: 'Color the hamster yellow!' },
+  { pet: 'parrot', targetColor: 'Purple', hex: '#a855f7', instruction: 'Color the parrot purple!' },
+  { pet: 'bird', targetColor: 'Black', hex: '#334155', instruction: 'Color the bird black and white!' }
+];
+
+const COLOR_PALETTE = [
+  { name: 'White', hex: '#ffffff', text: '#0f172a' },
+  { name: 'Brown', hex: '#92400e', text: '#ffffff' },
+  { name: 'Orange', hex: '#f97316', text: '#ffffff' },
+  { name: 'Gray', hex: '#94a3b8', text: '#0f172a' },
+  { name: 'Green', hex: '#22c55e', text: '#ffffff' },
+  { name: 'Yellow', hex: '#facc15', text: '#0f172a' },
+  { name: 'Purple', hex: '#a855f7', text: '#ffffff' },
+  { name: 'Black', hex: '#334155', text: '#ffffff' }
+];
+
+const SCRAMBLE_WORDS = ['CAT', 'DOG', 'FISH', 'BIRD', 'RABBIT', 'TURTLE', 'HAMSTER', 'PARROT'];
+
+const READ_CIRCLE_STORIES = [
+  {
+    title: "Renai's Happy Pet",
+    story: "Hello! My name is Renai. I have a cute pet at home. It is a turtle. Its color is green. It walks slowly in the garden.",
+    pet: 'turtle',
+    questions: [
+      { q: "What is the story about?", opts: ["Renai's pet", "Renai's school", "Renai's toys"], ans: "Renai's pet" },
+      { q: "Does Renai have a turtle?", opts: ["Yes, she does", "No, she doesn't", "She has a fish"], ans: "Yes, she does" },
+      { q: "What color is the turtle?", opts: ["Green", "Orange", "Purple"], ans: "Green" }
+    ]
+  },
+  {
+    title: "Bima's Farm Yard",
+    story: "Look at Bima's yard! There is a brown dog and a yellow chicken. The chicken likes to eat corn every morning.",
+    pet: 'chicken',
+    questions: [
+      { q: "What animals are there?", opts: ["A dog and a chicken", "A cat and a fish", "A rabbit and a bird"], ans: "A dog and a chicken" },
+      { q: "What color is the chicken?", opts: ["Yellow", "Brown", "White"], ans: "Yellow" },
+      { q: "What color is the dog?", opts: ["Brown", "Green", "Gray"], ans: "Brown" }
+    ]
+  },
+  {
+    title: "Siti's White Rabbit",
+    story: "Siti loves animals. Her favorite pet is a rabbit. It is white and soft. It loves eating fresh carrots.",
+    pet: 'rabbit',
+    questions: [
+      { q: "What is Siti's favorite pet?", opts: ["A rabbit", "A parrot", "A turtle"], ans: "A rabbit" },
+      { q: "What color is the rabbit?", opts: ["White", "Gray", "Black"], ans: "White" },
+      { q: "What does the rabbit love eating?", opts: ["Carrots", "Fish", "Bread"], ans: "Carrots" }
+    ]
+  },
+  {
+    title: "Edo's Talking Parrot",
+    story: "Edo has a clever bird. It is a purple parrot. Every day, the parrot says 'Hello Edo!' in a loud voice.",
+    pet: 'parrot',
+    questions: [
+      { q: "What pet does Edo have?", opts: ["A parrot", "A hamster", "A cat"], ans: "A parrot" },
+      { q: "What color is the parrot?", opts: ["Purple", "Yellow", "Brown"], ans: "Purple" },
+      { q: "What does the parrot say?", opts: ["Hello Edo!", "Meow!", "Woof!"], ans: "Hello Edo!" }
+    ]
+  },
+  {
+    title: "Lani's Aquarium",
+    story: "In Lani's living room, there is a big aquarium. She has a gray fish. It swims happily in the clean water.",
+    pet: 'fish',
+    questions: [
+      { q: "What pet is in the aquarium?", opts: ["A gray fish", "An orange cat", "A green turtle"], ans: "A gray fish" },
+      { q: "What color is the fish?", opts: ["Gray", "White", "Yellow"], ans: "Gray" },
+      { q: "Where does the fish swim?", opts: ["In the water", "In the tree", "On the grass"], ans: "In the water" }
+    ]
+  }
+];
+
+const GUESS_PET_CLUES = [
+  { pet: 'dog', clues: ['I HAVE FOUR LEGS.', 'I CAN BARK (WOOF!).', 'I AM BROWN.'] },
+  { pet: 'rabbit', clues: ['I HAVE LONG EARS.', 'I LOVE CARROTS.', 'I AM WHITE.'] },
+  { pet: 'cat', clues: ['I SAY MEOW.', 'I LIKE CHASING MICE.', 'I AM ORANGE.'] },
+  { pet: 'turtle', clues: ['I WALK VERY SLOWLY.', 'I CARRY MY HOUSE ON MY BACK.', 'I AM GREEN.'] },
+  { pet: 'fish', clues: ['I HAVE NO LEGS.', 'I SWIM IN THE WATER.', 'I AM GRAY.'] },
+  { pet: 'bird', clues: ['I HAVE TWO WINGS.', 'I CAN FLY HIGH.', 'I AM BLACK AND WHITE.'] },
+  { pet: 'hamster', clues: ['I AM VERY SMALL AND CUTE.', 'I RUN ON A WHEEL.', 'I AM YELLOW.'] },
+  { pet: 'parrot', clues: ['I HAVE COLORFUL FEATHERS.', 'I CAN MIMIC HUMAN WORDS.', 'I AM PURPLE.'] },
+  { pet: 'chicken', clues: ['I LIVE ON A FARM.', 'I LAY EGGS.', 'I AM YELLOW-BROWN.'] },
+  { pet: 'duck', clues: ['I SAY QUACK QUACK.', 'I LOVE SWIMMING IN A POND.', 'I AM YELLOW.'] }
+];
+
+const SENTENCE_BATTLE_ITEMS = [
+  { pet: 'rabbit', words: ["It's", "a", "rabbit.", "It's", "white."], target: "It's a rabbit. It's white." },
+  { pet: 'dog', words: ["It's", "a", "dog.", "It's", "brown."], target: "It's a dog. It's brown." },
+  { pet: 'cat', words: ["It's", "a", "cat.", "It's", "orange."], target: "It's a cat. It's orange." },
+  { pet: 'fish', words: ["It's", "a", "fish.", "It's", "gray."], target: "It's a fish. It's gray." },
+  { pet: 'turtle', words: ["It's", "a", "turtle.", "It's", "green."], target: "It's a turtle. It's green." },
+  { pet: 'hamster', words: ["It's", "a", "hamster.", "It's", "yellow."], target: "It's a hamster. It's yellow." },
+  { pet: 'parrot', words: ["It's", "a", "parrot.", "It's", "purple."], target: "It's a parrot. It's purple." },
+  { pet: 'bird', words: ["It's", "a", "bird.", "It's", "black", "and", "white."], target: "It's a bird. It's black and white." },
+  { pet: 'rabbit', words: ["My", "favorite", "pet", "is", "a", "rabbit."], target: "My favorite pet is a rabbit." },
+  { pet: 'cat', words: ["This", "is", "my", "orange", "cat."], target: "This is my orange cat." }
+];
+
+const REWARD_BADGES = [
+  { id: 'explorer', name: 'PET EXPLORER', icon: '🧭', desc: 'Menjelajahi dunia hewan peliharaan!' },
+  { id: 'animal', name: 'ANIMAL MASTER', icon: '🐾', desc: 'Menguasai seluruh kosakata hewan!' },
+  { id: 'color', name: 'COLOR EXPERT', icon: '🎨', desc: 'Hebat menyebutkan warna hewan!' },
+  { id: 'listening', name: 'LISTENING HERO', icon: '🎧', desc: 'Pendengar Bahasa Inggris yang teliti!' },
+  { id: 'speaking', name: 'SPEAKING STAR', icon: '🎤', desc: 'Berani berbicara di depan kelas!' },
+  { id: 'spelling', name: 'SPELLING MASTER', icon: '🔤', desc: 'Jago menyusun ejaan kata hewan!' },
+  { id: 'team', name: 'TEAM PLAYER', icon: '🤝', desc: 'Kompak bekerja sama dalam tim!' },
+  { id: 'champion', name: 'PET CHAMPION', icon: '👑', desc: 'Juara utama Pet Adventure!' }
+];
+
+/**
+ * ============================================================================
+ * 3. SISTEM AUDIO WEB AUDIO API + TEXT TO SPEECH (TANPA FILE EKSTERNAL)
+ * ============================================================================
+ */
+class SoundEngine {
+  constructor() {
+    this.ctx = null;
+    this.musicOn = true;
+    this.sfxOn = true;
+    this.volume = 0.6;
+    this.bgmInterval = null;
+    this.bgmMode = 'calm'; // 'calm' | 'energetic'
+    this.noteIndex = 0;
+  }
+
+  init() {
+    if (!this.ctx) {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      this.ctx = new AudioCtx();
+    }
+    if (this.ctx.state === 'suspended') {
+      this.ctx.resume();
+    }
+  }
+
+  playTone(freq, duration = 0.15, type = 'sine', volScale = 0.3, delay = 0) {
+    if (!this.sfxOn) return;
+    this.init();
+    const now = this.ctx.currentTime + delay;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, now);
+    gain.gain.setValueAtTime(this.volume * volScale, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(now);
+    osc.stop(now + duration);
+  }
+
+  sfx(name) {
+    if (!this.sfxOn) return;
+    this.init();
+    switch (name) {
+      case 'click':
+        this.playTone(620, 0.08, 'triangle', 0.25);
+        break;
+      case 'menu':
+        this.playTone(440, 0.09, 'sine', 0.25, 0);
+        this.playTone(660, 0.12, 'sine', 0.25, 0.06);
+        break;
+      case 'card':
+        this.playTone(523.25, 0.08, 'triangle', 0.25, 0);
+        this.playTone(783.99, 0.14, 'triangle', 0.25, 0.05);
+        break;
+      case 'correct':
+        this.playTone(523.25, 0.12, 'triangle', 0.35, 0);
+        this.playTone(659.25, 0.12, 'triangle', 0.35, 0.09);
+        this.playTone(783.99, 0.22, 'triangle', 0.4, 0.18);
+        break;
+      case 'wrong':
+        this.playTone(300, 0.18, 'sine', 0.25, 0);
+        this.playTone(250, 0.24, 'sine', 0.25, 0.14);
+        break;
+      case 'star':
+        [587.33, 739.99, 880, 1174.66].forEach((f, i) => this.playTone(f, 0.15, 'sine', 0.3, i * 0.07));
+        break;
+      case 'countdown':
+        this.playTone(880, 0.08, 'square', 0.18);
+        break;
+      case 'start':
+        [440, 554.37, 659.25, 880].forEach((f, i) => this.playTone(f, 0.16, 'triangle', 0.35, i * 0.08));
+        break;
+      case 'victory':
+        const notes = [523.25, 659.25, 783.99, 1046.5, 783.99, 1046.5];
+        const times = [0, 0.12, 0.24, 0.36, 0.54, 0.68];
+        notes.forEach((f, i) => this.playTone(f, 0.25, 'triangle', 0.4, times[i]));
+        break;
+    }
+  }
+
+  startBgm(mode = 'calm') {
+    this.bgmMode = mode;
+    if (this.bgmInterval) clearInterval(this.bgmInterval);
+    if (!this.musicOn) return;
+
+    const calmMelody = [523.25, 659.25, 783.99, 659.25, 587.33, 698.46, 880, 698.46];
+    const gameMelody = [523.25, 523.25, 783.99, 783.99, 880, 880, 783.99, 0, 698.46, 698.46, 659.25, 659.25, 587.33, 587.33, 523.25, 0];
+    const tempo = mode === 'energetic' ? 260 : 520;
+
+    this.bgmInterval = setInterval(() => {
+      if (!this.musicOn) return;
+      this.init();
+      const seq = this.bgmMode === 'energetic' ? gameMelody : calmMelody;
+      const freq = seq[this.noteIndex % seq.length];
+      this.noteIndex++;
+      if (freq > 0) {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = this.bgmMode === 'energetic' ? 'triangle' : 'sine';
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        const vol = this.volume * (this.bgmMode === 'energetic' ? 0.08 : 0.055);
+        gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0008, this.ctx.currentTime + (tempo / 1000) * 0.9);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + (tempo / 1000) * 0.92);
+      }
+    }, tempo);
+  }
+
+  stopBgm() {
+    if (this.bgmInterval) {
+      clearInterval(this.bgmInterval);
+      this.bgmInterval = null;
+    }
+  }
+}
+
+const audio = new SoundEngine();
+
+function speakEnglish(text) {
+  if (!('speechSynthesis' in window)) return;
+  window.speechSynthesis.cancel();
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.lang = 'en-US';
+  utter.rate = state.settings.ttsRate || 0.9;
+  utter.pitch = 1.08;
+  utter.volume = audio.volume;
+  window.speechSynthesis.speak(utter);
+}
+
+/**
+ * ============================================================================
+ * 4. STATE APLIKASI & LOCAL STORAGE PERSISTENCE
+ * ============================================================================
+ */
+const DEFAULT_STATE = {
+  screen: 'welcome', // welcome | dashboard | learn | listen | quiz | indiv_hub | indiv_quiz | indiv_color | indiv_scramble | indiv_read | duel | speaking | assessment | reflection
+  history: [],
+  learnSection: 1,
+  selectedPetId: 'rabbit',
+  dialoguePetId: 'rabbit',
+  // Listening state
+  listenIdx: 0,
+  listenScore: 0,
+  // Individual Games
+  quizIdx: 0,
+  quizScore: 0,
+  colorIdx: 0,
+  currentPaintedHex: null,
+  scrambleIdx: 0,
+  scrambleScore: 0,
+  scrambleAnswer: [],
+  scramblePool: [],
+  readIdx: 0,
+  readScore: 0,
+  readAnswers: {},
+  // Group Duel (Pet Battle)
+  duel: {
+    teamA: 'RABBIT TEAM',
+    teamB: 'TIGER TEAM',
+    scoreA: 0,
+    scoreB: 0,
+    streakA: 0,
+    streakB: 0,
+    activeTeam: 'A', // 'A' or 'B'
+    mode: 1, // 1..6 or 'final'
+    qIdx: 0,
+    clueCount: 1,
+    scrambleAns: [],
+    scramblePool: [],
+    sentenceAns: [],
+    sentencePool: [],
+    finished: false
+  },
+  // Speaking Challenge
+  speakingPetIdx: 0,
+  showSpeakingText: true,
+  speechTranscript: '',
+  // Teacher Assessment (Saved to localStorage)
+  assessments: [],
+  // Reflection counts
+  reflectionCounts: { can: 0, practice: 0, help: 0 },
+  // Rewards
+  unlockedBadges: ['explorer'],
+  // Teacher Settings
+  settings: {
+    timerEnabled: true,
+    timerSec: 15,
+    ttsRate: 0.9
+  }
+};
+
+let state = JSON.parse(JSON.stringify(DEFAULT_STATE));
+
+// Load saved data from localStorage
+function loadSavedData() {
+  try {
+    const savedAssessments = localStorage.getItem('pid_mypet_assessments');
+    if (savedAssessments) state.assessments = JSON.parse(savedAssessments);
+    const savedBadges = localStorage.getItem('pid_mypet_badges');
+    if (savedBadges) state.unlockedBadges = JSON.parse(savedBadges);
+    const savedTeams = localStorage.getItem('pid_mypet_teams');
+    if (savedTeams) {
+      const t = JSON.parse(savedTeams);
+      state.duel.teamA = t.teamA || 'RABBIT TEAM';
+      state.duel.teamB = t.teamB || 'TIGER TEAM';
+    }
+  } catch (e) {
+    console.warn('Storage unavailable:', e);
+  }
+}
+
+function persistData() {
+  try {
+    localStorage.setItem('pid_mypet_assessments', JSON.stringify(state.assessments));
+    localStorage.setItem('pid_mypet_badges', JSON.stringify(state.unlockedBadges));
+    localStorage.setItem('pid_mypet_teams', JSON.stringify({ teamA: state.duel.teamA, teamB: state.duel.teamB }));
+  } catch (e) {}
+}
+
+/**
+ * ============================================================================
+ * 5. TIMER & CONFETTI SYSTEM
+ * ============================================================================
+ */
+let activeTimerInterval = null;
+let timeLeft = 15;
+
+function clearGameTimer() {
+  if (activeTimerInterval) {
+    clearInterval(activeTimerInterval);
+    activeTimerInterval = null;
+  }
+}
+
+function startGameTimer(onTimeout, onTick) {
+  clearGameTimer();
+  if (!state.settings.timerEnabled) return;
+  timeLeft = parseInt(state.settings.timerSec) || 15;
+  if (onTick) onTick(timeLeft);
+
+  activeTimerInterval = setInterval(() => {
+    timeLeft--;
+    if (timeLeft <= 3 && timeLeft > 0) audio.sfx('countdown');
+    if (onTick) onTick(timeLeft);
+    if (timeLeft <= 0) {
+      clearGameTimer();
+      if (onTimeout) onTimeout();
+    }
+  }, 1000);
+}
+
+// Confetti Particle System
+function triggerConfetti(durationMs = 2600) {
+  const canvas = document.getElementById('confetti-canvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth;
+  canvas.height = canvas.offsetHeight;
+
+  const colors = ['#facc15', '#38bdf8', '#4ade80', '#f472b6', '#a855f7', '#fb923c'];
+  const particles = Array.from({ length: 110 }, () => ({
+    x: Math.random() * canvas.width,
+    y: -20 - Math.random() * canvas.height * 0.4,
+    r: 6 + Math.random() * 7,
+    dx: (Math.random() - 0.5) * 5,
+    dy: 3 + Math.random() * 5,
+    color: colors[Math.floor(Math.random() * colors.length)],
+    tilt: Math.random() * 10
+  }));
+
+  const endTime = Date.now() + durationMs;
+  function frame() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    particles.forEach(p => {
+      p.x += p.dx;
+      p.y += p.dy;
+      p.tilt += 0.1;
+      ctx.fillStyle = p.color;
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.tilt);
+      ctx.fillRect(-p.r / 2, -p.r / 2, p.r, p.r * 0.6);
+      ctx.restore();
+    });
+    if (Date.now() < endTime) {
+      requestAnimationFrame(frame);
+    } else {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+  }
+  requestAnimationFrame(frame);
+}
+
+/**
+ * ============================================================================
+ * 6. NAVIGASI & KONTROL GLOBAL
+ * ============================================================================
+ */
+function goToScreen(screenName, pushHistory = true) {
+  clearGameTimer();
+  audio.sfx('menu');
+  if (pushHistory && state.screen !== screenName) {
+    state.history.push(state.screen);
+  }
+  state.screen = screenName;
+
+  // Adjust BGM energy based on screen
+  const gameScreens = ['listen', 'quiz', 'indiv_quiz', 'indiv_color', 'indiv_scramble', 'indiv_read', 'duel'];
+  if (screenName !== 'welcome') {
+    audio.startBgm(gameScreens.includes(screenName) ? 'energetic' : 'calm');
+  }
+
+  render();
+}
+
+function navigateHome() {
+  state.history = [];
+  goToScreen('dashboard', false);
+}
+
+function navigateBack() {
+  if (state.history.length > 0) {
+    const prev = state.history.pop();
+    goToScreen(prev, false);
+  } else {
+    goToScreen('dashboard', false);
+  }
+}
+
+function toggleMusic() {
+  audio.musicOn = !audio.musicOn;
+  document.getElementById('icon-music').textContent = audio.musicOn ? '🎵' : '🔇';
+  document.getElementById('label-music').textContent = audio.musicOn ? 'MUSIC ON' : 'MUSIC OFF';
+  if (audio.musicOn) {
+    audio.startBgm(audio.bgmMode);
+  } else {
+    audio.stopBgm();
+  }
+}
+
+function toggleSfx() {
+  audio.sfxOn = !audio.sfxOn;
+  document.getElementById('icon-sfx').textContent = audio.sfxOn ? '🔊' : '🔈';
+  document.getElementById('label-sfx').textContent = audio.sfxOn ? 'SOUND ON' : 'SOUND OFF';
+  if (audio.sfxOn) audio.sfx('click');
+}
+
+function updateVolume(val) {
+  audio.volume = parseFloat(val);
+}
+
+function toggleFullscreen() {
+  audio.sfx('click');
+  const elem = document.documentElement;
+  if (!document.fullscreenElement) {
+    if (elem.requestFullscreen) elem.requestFullscreen().catch(() => {});
+  } else {
+    if (document.exitFullscreen) document.exitFullscreen().catch(() => {});
+  }
+}
+
+function showFeedback(emoji, title, msg, onContinue = null, isVictory = false) {
+  const overlay = document.getElementById('feedback-overlay');
+  document.getElementById('feedback-emoji').textContent = emoji;
+  document.getElementById('feedback-title').textContent = title;
+  document.getElementById('feedback-msg').textContent = msg;
+  overlay.classList.remove('hidden');
+  overlay.classList.add('flex');
+
+  if (isVictory) {
+    audio.sfx('victory');
+    triggerConfetti(3000);
+  }
+
+  const btn = document.getElementById('feedback-btn');
+  btn.onclick = () => {
+    audio.sfx('click');
+    closeFeedback();
+    if (onContinue) onContinue();
+  };
+}
+
+function closeFeedback() {
+  const overlay = document.getElementById('feedback-overlay');
+  overlay.classList.add('hidden');
+  overlay.classList.remove('flex');
+}
+
+function unlockBadge(badgeId, announce = true) {
+  if (!state.unlockedBadges.includes(badgeId)) {
+    state.unlockedBadges.push(badgeId);
+    persistData();
+  }
+  updateBadgeCount();
+  if (announce) {
+    const b = REWARD_BADGES.find(x => x.id === badgeId);
+    if (b) {
+      audio.sfx('star');
+      triggerConfetti(2200);
+      showFeedback(b.icon, `REWARD UNLOCKED: ${b.name}!`, b.desc);
+    }
+  }
+}
+
+function updateBadgeCount() {
+  const el = document.getElementById('badge-count');
+  if (el) el.textContent = state.unlockedBadges.length;
+}
+
+// Teacher Control Modal Functions
+function openTeacherControlModal() {
+  audio.sfx('click');
+  document.getElementById('ctrl-team-a').value = state.duel.teamA;
+  document.getElementById('ctrl-team-b').value = state.duel.teamB;
+  document.getElementById('ctrl-score-a').value = state.duel.scoreA;
+  document.getElementById('ctrl-score-b').value = state.duel.scoreB;
+  document.getElementById('ctrl-timer-enabled').checked = state.settings.timerEnabled;
+  document.getElementById('ctrl-timer-sec').value = state.settings.timerSec;
+  document.getElementById('ctrl-tts-rate').value = state.settings.ttsRate;
+  document.getElementById('teacher-modal').classList.remove('hidden');
+  document.getElementById('teacher-modal').classList.add('flex');
+}
+
+function closeTeacherControlModal() {
+  document.getElementById('teacher-modal').classList.add('hidden');
+  document.getElementById('teacher-modal').classList.remove('flex');
+}
+
+function saveTeacherSettings() {
+  audio.sfx('correct');
+  state.duel.teamA = document.getElementById('ctrl-team-a').value.trim() || 'RABBIT TEAM';
+  state.duel.teamB = document.getElementById('ctrl-team-b').value.trim() || 'TIGER TEAM';
+  state.duel.scoreA = parseInt(document.getElementById('ctrl-score-a').value) || 0;
+  state.duel.scoreB = parseInt(document.getElementById('ctrl-score-b').value) || 0;
+  state.settings.timerEnabled = document.getElementById('ctrl-timer-enabled').checked;
+  state.settings.timerSec = parseInt(document.getElementById('ctrl-timer-sec').value) || 15;
+  state.settings.ttsRate = parseFloat(document.getElementById('ctrl-tts-rate').value) || 0.9;
+  persistData();
+  closeTeacherControlModal();
+  render();
+}
+
+function resetAllProgress() {
+  audio.sfx('wrong');
+  state.duel.scoreA = 0;
+  state.duel.scoreB = 0;
+  state.listenScore = 0;
+  state.quizScore = 0;
+  state.scrambleScore = 0;
+  state.readScore = 0;
+  state.unlockedBadges = ['explorer'];
+  persistData();
+  updateBadgeCount();
+  closeTeacherControlModal();
+  render();
+}
+
+function openBadgesModal() {
+  audio.sfx('click');
+  const grid = document.getElementById('badges-grid');
+  grid.innerHTML = REWARD_BADGES.map(b => {
+    const unlocked = state.unlockedBadges.includes(b.id);
+    return `
+      <button onclick="unlockBadge('${b.id}', true); closeBadgesModal();" class="btn-game p-4 rounded-2xl border-4 ${unlocked ? 'bg-amber-100 border-amber-400' : 'bg-slate-100 border-slate-300 opacity-75'} flex flex-col items-center text-center">
+        <span class="text-5xl mb-2">${b.icon}</span>
+        <span class="font-game text-base font-bold text-slate-900">${b.name}</span>
+        <span class="text-xs font-bold text-slate-600 mt-1">${b.desc}</span>
+        <span class="mt-2 px-2.5 py-0.5 rounded-full text-xs font-extrabold ${unlocked ? 'bg-emerald-500 text-white' : 'bg-slate-300 text-slate-700'}">
+          ${unlocked ? 'UNLOCKED ✓' : 'KLIK BERI REWARD'}
+        </span>
+      </button>
+    `;
+  }).join('');
+  document.getElementById('badges-modal').classList.remove('hidden');
+  document.getElementById('badges-modal').classList.add('flex');
+}
+
+function closeBadgesModal() {
+  document.getElementById('badges-modal').classList.add('hidden');
+  document.getElementById('badges-modal').classList.remove('flex');
+}
+
+/**
+ * ============================================================================
+ * 7. HALAMAN 1: WELCOME SCREEN (HALAMAN PEMBUKA)
+ * ============================================================================
+ */
+function renderWelcome(vp) {
+  document.getElementById('top-bar').classList.add('hidden');
+  vp.innerHTML = `
+    <div class="screen-enter w-full h-full flex flex-col items-center justify-between py-2 text-center">
+      <!-- Top Badge & Fullscreen shortcut -->
+      <div class="w-full flex items-center justify-between px-4">
+        <div class="bg-white/90 px-4 py-1.5 rounded-full border-2 border-sky-400 font-extrabold text-sky-900 text-sm md:text-base shadow">
+          📚 Bahasa Inggris Kelas III SD • Chapter 6: My Pet (Pertemuan 31)
+        </div>
+        <button onclick="toggleFullscreen()" class="btn-game bg-indigo-600 text-white px-4 py-1.5 rounded-full font-extrabold text-sm md:text-base border-2 border-indigo-800">
+          ⛶ FULLSCREEN PID
+        </button>
+      </div>
+
+      <!-- Main Hero Title -->
+      <div class="my-auto flex flex-col items-center">
+        <div class="bg-amber-400 text-slate-900 font-extrabold px-5 py-1 rounded-full border-2 border-amber-600 text-sm md:text-lg mb-2 shadow">
+          🌟 ANIMAL LEARNING GAME FOR SMART BOARD 🌟
+        </div>
+        <h1 class="font-game text-5xl sm:text-7xl md:text-8xl font-bold text-white drop-shadow-[0_6px_0_rgba(3,105,161,1)] tracking-wide">
+          PET ADVENTURE
+        </h1>
+        <p class="font-game text-2xl sm:text-4xl font-bold text-amber-300 drop-shadow-[0_3px_0_rgba(15,23,42,0.85)] mt-1">
+          LET'S LEARN ABOUT OUR PETS!
+        </p>
+
+        <!-- 8 Animated Pet Characters Row -->
+        <div class="grid grid-cols-4 sm:grid-cols-8 gap-2 md:gap-4 my-5 px-4 max-w-6xl w-full">
+          ${PETS.map((p, idx) => `
+            <div onclick="speakEnglish('${p.name}'); audio.sfx('card');" style="animation-delay: ${idx * 0.18}s" class="animate-pet cursor-pointer bg-white/90 hover:bg-amber-100 rounded-3xl p-2 border-4 border-sky-300 shadow-lg flex flex-col items-center transition-transform hover:scale-110">
+              ${getPetSVG(p.id, null, false, 'w-16 h-16 md:w-20 md:h-20')}
+              <span class="font-game text-sm md:text-base font-bold text-slate-800 mt-1">${p.name}</span>
+            </div>
+          `).join('')}
+        </div>
+
+        <!-- Big CTA Button -->
+        <button onclick="startAdventure()" class="btn-game pulse-cta bg-gradient-to-b from-amber-300 via-amber-400 to-orange-500 text-slate-900 font-game text-3xl sm:text-4xl md:text-5xl font-bold px-12 py-4 md:py-5 rounded-full border-4 border-white shadow-2xl flex items-center gap-4">
+          <span>🚀</span> <span>START THE ADVENTURE</span>
+        </button>
+      </div>
+
+      <!-- Identity Box -->
+      <div class="bg-white/90 backdrop-blur-xs px-6 py-2 rounded-2xl border-2 border-emerald-500 shadow-md">
+        <p class="font-extrabold text-slate-800 text-base md:text-lg">
+          Interactive English Learning – Grade 3 • <span class="text-emerald-700">Oleh Dindo Noto Sastro, S.Pd.</span>
+        </p>
+      </div>
+    </div>
+  `;
+}
+
+function startAdventure() {
+  audio.sfx('start');
+  speakEnglish("Welcome to Pet Adventure! Let's learn about our pets!");
+  goToScreen('dashboard');
+}
+
+/**
+ * ============================================================================
+ * 8. HALAMAN 2: DASHBOARD UTAMA GURU (8 KARTU MENU BESAR)
+ * ============================================================================
+ */
+function renderDashboard(vp) {
+  document.getElementById('top-bar').classList.remove('hidden');
+  document.getElementById('header-title').textContent = 'TEACHER DASHBOARD';
+  document.getElementById('header-subtitle').textContent = 'Pilih Aktivitas Pembelajaran PID';
+
+  const menus = [
+    { id: 'learn', num: '1', title: 'LEARN', sub: 'Materi & Kosakata (5 Bagian)', icon: '📖', bg: 'from-sky-400 to-sky-600', border: 'border-sky-800' },
+    { id: 'listen', num: '2', title: 'LISTEN & PLAY', sub: 'Tebak Suara & Deskripsi Hewan', icon: '🎧', bg: 'from-emerald-400 to-emerald-600', border: 'border-emerald-800' },
+    { id: 'quiz', num: '3', title: 'PET QUIZ', sub: 'Kuis Cepat Kelas (15 Soal)', icon: '❓', bg: 'from-amber-400 to-orange-500', border: 'border-orange-800' },
+    { id: 'indiv_hub', num: '4', title: 'INDIVIDUAL GAME', sub: '4 Permainan Siswa di PID', icon: '🎮', bg: 'from-purple-500 to-indigo-600', border: 'border-indigo-900' },
+    { id: 'duel', num: '5', title: 'GROUP DUEL', sub: 'PET BATTLE: Team A vs Team B', icon: '⚔️', bg: 'from-rose-500 to-red-600', border: 'border-red-900' },
+    { id: 'speaking', num: '6', title: 'SPEAKING CHALLENGE', sub: 'Look and Speak di Depan Kelas', icon: '🎤', bg: 'from-pink-500 to-rose-600', border: 'border-rose-800' },
+    { id: 'assessment', num: '7', title: 'TEACHER ASSESSMENT', sub: 'Rubrik Penilaian Unjuk Kerja', icon: '📋', bg: 'from-teal-500 to-cyan-700', border: 'border-cyan-900' },
+    { id: 'reflection', num: '8', title: 'REFLECTION & EXIT', sub: 'Refleksi Akhir & Layar Pembuka', icon: '🌈', bg: 'from-slate-600 to-slate-800', border: 'border-slate-950' }
+  ];
+
+  vp.innerHTML = `
+    <div class="screen-enter w-full h-full flex flex-col justify-between py-1">
+      <div class="text-center">
+        <h2 class="font-game text-3xl md:text-4xl font-bold text-slate-900 bg-white/90 inline-block px-8 py-1.5 rounded-full border-4 border-amber-400 shadow">
+          🐾 PET ADVENTURE – CLASSROOM MENU 🐾
+        </h2>
+      </div>
+
+      <!-- 4x2 Large Touch Cards Grid -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5 my-auto px-2 max-w-7xl mx-auto w-full">
+        ${menus.map(m => `
+          <button onclick="openDashboardMenu('${m.id}')" class="btn-game bg-gradient-to-br ${m.bg} text-white rounded-3xl p-4 md:p-5 border-4 ${m.border} flex flex-col items-center justify-center text-center relative overflow-hidden">
+            <span class="absolute top-3 left-3 bg-white/25 px-3 py-0.5 rounded-full font-extrabold text-sm md:text-base">#${m.num}</span>
+            <div class="text-5xl md:text-6xl mb-2 drop-shadow">${m.icon}</div>
+            <h3 class="font-game text-xl md:text-2xl font-bold tracking-wide leading-tight">${m.title}</h3>
+            <p class="text-xs md:text-sm font-bold text-white/90 mt-1">${m.sub}</p>
+          </button>
+        `).join('')}
+      </div>
+
+      <!-- Quick Status Strip -->
+      <div class="flex flex-wrap items-center justify-center gap-4 bg-white/85 px-5 py-2 rounded-2xl border-2 border-sky-300 mx-auto text-sm md:text-base font-extrabold text-slate-800">
+        <span>⚔️ Duel Score: <span class="text-sky-700">${state.duel.teamA} (${state.duel.scoreA})</span> vs <span class="text-rose-600">${state.duel.teamB} (${state.duel.scoreB})</span></span>
+        <span>•</span>
+        <span>📋 Siswa Dinilai: <span class="text-emerald-700">${state.assessments.length} Siswa</span></span>
+      </div>
+    </div>
+  `;
+}
+
+function openDashboardMenu(id) {
+  if (id === 'quiz') {
+    state.quizIdx = 0;
+    state.quizScore = 0;
+    goToScreen('indiv_quiz');
+  } else {
+    goToScreen(id);
+  }
+}
+
+/**
+ * ============================================================================
+ * 9. HALAMAN 3: MENU LEARN – MATERI PEMBELAJARAN (5 SECTIONS SESUAI RPP)
+ * ============================================================================
+ */
+function renderLearn(vp) {
+  document.getElementById('header-title').textContent = 'LEARN – MY PET';
+  document.getElementById('header-subtitle').textContent = `Materi Pembelajaran • Section ${state.learnSection} of 5`;
+
+  const tabs = [
+    { sec: 1, label: '1. Look & Answer' },
+    { sec: 2, label: '2. Look & Match' },
+    { sec: 3, label: "3. Let's Learn Pets" },
+    { sec: 4, label: '4. Sentence Builder' },
+    { sec: 5, label: '5. Favorite Pet Dialog' }
+  ];
+
+  let sectionHtml = '';
+  if (state.learnSection === 1) sectionHtml = buildLearnSection1();
+  if (state.learnSection === 2) sectionHtml = buildLearnSection2();
+  if (state.learnSection === 3) sectionHtml = buildLearnSection3();
+  if (state.learnSection === 4) sectionHtml = buildLearnSection4();
+  if (state.learnSection === 5) sectionHtml = buildLearnSection5();
+
+  vp.innerHTML = `
+    <div class="screen-enter w-full h-full flex flex-col justify-between gap-2">
+      <!-- Top Section Stepper -->
+      <div class="flex flex-wrap items-center justify-center gap-2">
+        ${tabs.map(t => `
+          <button onclick="setLearnSection(${t.sec})" class="btn-game px-4 py-2 rounded-2xl font-extrabold text-sm md:text-base border-2 ${state.learnSection === t.sec ? 'bg-amber-400 text-slate-900 border-amber-700 scale-105' : 'bg-white/90 text-slate-700 border-sky-300'}">
+            ${t.label}
+          </button>
+        `).join('')}
+      </div>
+
+      <!-- Main Section Content -->
+      <div class="flex-1 bg-white/95 rounded-3xl border-4 border-sky-400 p-4 md:p-5 shadow-xl flex flex-col justify-between overflow-hidden">
+        ${sectionHtml}
+      </div>
+    </div>
+  `;
+
+  if (state.learnSection === 2) initSection2DragDrop();
+}
+
+function setLearnSection(sec) {
+  audio.sfx('click');
+  state.learnSection = sec;
+  render();
+}
+
+// SECTION 1: LOOK AND ANSWER (THE PET SHOW)
+function buildLearnSection1() {
+  const showPets = [...PETS.slice(0, 6), ...EXTRA_SHOW_PETS]; // Cat, Dog, Rabbit, Turtle, Fish, Bird, Chicken, Duck
+  const activePet = showPets.find(p => p.id === state.selectedPetId) || showPets[2];
+
+  return `
+    <div class="flex flex-col md:flex-row items-center justify-between gap-4 h-full">
+      <!-- Left: Stage Illustration THE PET SHOW -->
+      <div class="flex-1 h-full bg-gradient-to-b from-amber-100 via-orange-50 to-emerald-100 rounded-2xl border-4 border-amber-400 p-4 flex flex-col justify-between relative">
+        <div class="bg-rose-600 text-white font-game text-xl md:text-2xl font-bold px-6 py-1 rounded-full mx-auto border-2 border-amber-300 shadow">
+          🎪 THE PET SHOW STAGE 🎪
+        </div>
+        <p class="text-center text-sm md:text-base font-bold text-slate-700">Klik hewan di panggung untuk memperbesar & mendengar deskripsi!</p>
+
+        <div class="grid grid-cols-4 gap-3 my-auto">
+          ${showPets.map(p => `
+            <button onclick="selectShowPet('${p.id}')" class="btn-game p-2 rounded-2xl border-4 ${state.selectedPetId === p.id ? 'bg-amber-200 border-rose-500 scale-105' : 'bg-white border-sky-200'} flex flex-col items-center">
+              ${getPetSVG(p.id, null, false, 'w-16 h-16 md:w-20 md:h-20')}
+              <span class="font-game text-sm md:text-base font-bold text-slate-800">${p.name}</span>
+            </button>
+          `).join('')}
+        </div>
+      </div>
+
+      <!-- Right: Teacher Discussion Prompts & Selected Pet Zoom -->
+      <div class="w-full md:w-96 h-full bg-sky-50 rounded-2xl border-4 border-sky-300 p-4 flex flex-col justify-between text-center">
+        <div class="bg-sky-600 text-white rounded-xl p-2.5">
+          <div class="text-xs font-extrabold uppercase tracking-wider text-sky-200">Pertanyaan Pemantik Guru</div>
+          <div class="font-game text-lg md:text-xl font-bold">"What color is the ${activePet.name.toLowerCase()}?"</div>
+          <div class="font-game text-base font-bold text-amber-300">"What is your favorite pet?"</div>
+        </div>
+
+        <div class="my-auto flex flex-col items-center bg-white rounded-2xl p-3 border-2 border-sky-200 shadow-inner">
+          <div class="animate-pet">${getPetSVG(activePet.id, null, false, 'w-28 h-28 md:w-32 md:h-32')}</div>
+          <h3 class="font-game text-3xl font-bold text-slate-900">${activePet.name}</h3>
+          <p class="text-lg font-extrabold text-emerald-700">Color: ${activePet.color}</p>
+        </div>
+
+        <div class="flex gap-2">
+          <button onclick="speakEnglish('It is a ${activePet.name}. It is ${activePet.color}.')" class="btn-game flex-1 py-2.5 rounded-xl bg-emerald-500 text-white font-game text-lg font-bold border-2 border-emerald-700">
+            🔊 LISTEN
+          </button>
+          <button onclick="setLearnSection(2)" class="btn-game px-4 py-2.5 rounded-xl bg-amber-400 text-slate-900 font-game text-lg font-bold border-2 border-amber-600">
+            NEXT ➡️
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function selectShowPet(id) {
+  audio.sfx('card');
+  state.selectedPetId = id;
+  const p = [...PETS, ...EXTRA_SHOW_PETS].find(x => x.id === id);
+  if (p) speakEnglish(`It's a ${p.name}. It's ${p.color}.`);
+  render();
+}
+
+// SECTION 2: LOOK AND MATCH (DRAG & DROP SILHOUETTE)
+let matchedPetsSec2 = [];
+
+function buildLearnSection2() {
+  const targetPets = [PETS[2], PETS[4], PETS[0], PETS[5]]; // Cat, Fish, Rabbit, Turtle
+  const shuffledTop = [PETS[4], PETS[0], PETS[5], PETS[2]]; // Fish, Rabbit, Turtle, Cat
+
+  return `
+    <div class="w-full h-full flex flex-col justify-between text-center">
+      <div class="flex items-center justify-between">
+        <span class="bg-purple-100 text-purple-800 px-4 py-1 rounded-full font-extrabold text-sm md:text-base">🧩 Drag & Drop gambar hewan ke bayangan (siluet) yang cocok!</span>
+        <div class="flex gap-2">
+          <button onclick="resetSection2()" class="btn-game px-4 py-1.5 rounded-xl bg-amber-400 text-slate-900 font-extrabold text-sm border-2 border-amber-600">🔄 TRY AGAIN</button>
+          <button onclick="setLearnSection(3)" class="btn-game px-4 py-1.5 rounded-xl bg-emerald-500 text-white font-extrabold text-sm border-2 border-emerald-700">NEXT ➡️</button>
+        </div>
+      </div>
+
+      <!-- Top Row: Draggable Pet Cards -->
+      <div class="grid grid-cols-4 gap-4 max-w-4xl mx-auto w-full my-2">
+        ${shuffledTop.map(p => {
+          const isMatched = matchedPetsSec2.includes(p.id);
+          return `
+            <div class="h-36 bg-sky-50 rounded-2xl border-2 border-dashed border-sky-300 flex items-center justify-center p-2">
+              ${isMatched ? `<span class="text-emerald-600 font-game text-xl font-bold">✅ MATCHED!</span>` : `
+                <div draggable="true" data-pet="${p.id}" class="draggable-item bg-white p-2 rounded-2xl border-4 border-amber-400 shadow-md flex flex-col items-center w-full h-full justify-center">
+                  ${getPetSVG(p.id, null, false, 'w-20 h-20')}
+                  <span class="font-game text-base font-bold text-slate-800">${p.name}</span>
+                </div>
+              `}
+            </div>
+          `;
+        }).join('')}
+      </div>
+
+      <!-- Bottom Row: Silhouette Drop Zones -->
+      <div class="grid grid-cols-4 gap-4 max-w-4xl mx-auto w-full my-2">
+        ${targetPets.map(p => {
+          const isMatched = matchedPetsSec2.includes(p.id);
+          return `
+            <div data-target="${p.id}" class="drop-zone h-40 rounded-2xl border-4 ${isMatched ? 'bg-emerald-100 border-emerald-500' : 'bg-slate-100 border-slate-400'} flex flex-col items-center justify-center p-2">
+              ${getPetSVG(p.id, null, !isMatched, 'w-24 h-24')}
+              <span class="font-game text-base font-bold ${isMatched ? 'text-emerald-800' : 'text-slate-500'}">${isMatched ? p.name.toUpperCase() : '? ? ?'}</span>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function resetSection2() {
+  audio.sfx('click');
+  matchedPetsSec2 = [];
+  render();
+}
+
+function initSection2DragDrop() {
+  const draggables = document.querySelectorAll('.draggable-item');
+  const zones = document.querySelectorAll('.drop-zone');
+  let draggedPetId = null;
+
+  draggables.forEach(el => {
+    el.addEventListener('dragstart', () => {
+      draggedPetId = el.dataset.pet;
+      audio.sfx('click');
+    });
+    // Touch support for PID screens
+    el.addEventListener('touchstart', (e) => {
+      draggedPetId = el.dataset.pet;
+      el.style.opacity = '0.7';
+    }, { passive: true });
+    el.addEventListener('touchend', (e) => {
+      el.style.opacity = '1';
+      const touch = e.changedTouches[0];
+      const targetEl = document.elementFromPoint(touch.clientX, touch.clientY)?.closest('.drop-zone');
+      if (targetEl && draggedPetId) {
+        handleMatchDrop(draggedPetId, targetEl.dataset.target);
+      }
+      draggedPetId = null;
+    });
+  });
+
+  zones.forEach(zone => {
+    zone.addEventListener('dragover', e => {
+      e.preventDefault();
+      zone.classList.add('drag-over');
+    });
+    zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+    zone.addEventListener('drop', e => {
+      e.preventDefault();
+      zone.classList.remove('drag-over');
+      if (draggedPetId) handleMatchDrop(draggedPetId, zone.dataset.target);
+    });
+  });
+}
+
+function handleMatchDrop(petId, targetId) {
+  if (petId === targetId) {
+    if (!matchedPetsSec2.includes(petId)) matchedPetsSec2.push(petId);
+    audio.sfx('correct');
+    const p = PETS.find(x => x.id === petId);
+    speakEnglish(`Great! It's a ${p.name}!`);
+    render();
+    if (matchedPetsSec2.length === 4) {
+      triggerConfetti(2000);
+      audio.sfx('star');
+    }
+  } else {
+    audio.sfx('wrong');
+    speakEnglish("Try again!");
+  }
+}
+
+// SECTION 3: LET'S LEARN OUR PETS (8 LARGE CARDS)
+function buildLearnSection3() {
+  const activePet = PETS.find(p => p.id === state.selectedPetId) || PETS[0];
+  return `
+    <div class="w-full h-full flex flex-col justify-between">
+      <!-- Top Pronunciation Banner -->
+      <div class="bg-gradient-to-r from-sky-500 to-indigo-600 text-white rounded-2xl px-6 py-2.5 flex items-center justify-between shadow">
+        <div class="flex items-center gap-3">
+          <span class="text-3xl">🗣️</span>
+          <div>
+            <span class="font-game text-xl md:text-2xl font-bold">It's a <span class="text-amber-300 underline">${activePet.name.toLowerCase()}</span>. It's <span class="text-emerald-300 underline">${activePet.color.toLowerCase()}</span>.</span>
+          </div>
+        </div>
+        <button onclick="speakEnglish('It is a ${activePet.name}. It is ${activePet.color}.')" class="btn-game bg-amber-400 text-slate-900 px-5 py-1.5 rounded-xl font-extrabold text-base border-2 border-amber-600">
+          🔊 REPEAT AUDIO
+        </button>
+      </div>
+
+      <!-- 4x2 Grid of 8 Pet Cards -->
+      <div class="grid grid-cols-4 gap-3 my-auto">
+        ${PETS.map(p => `
+          <button onclick="clickVocabCard('${p.id}')" class="btn-game p-2.5 rounded-2xl border-4 ${state.selectedPetId === p.id ? 'bg-amber-100 border-amber-500 scale-[1.03]' : 'bg-sky-50 border-sky-200'} flex flex-col items-center justify-center relative">
+            <span class="absolute top-2 right-2 bg-white px-2 py-0.5 rounded-full text-xs font-extrabold border border-slate-300">🔊</span>
+            ${getPetSVG(p.id, null, false, 'w-16 h-16 md:w-20 md:h-20')}
+            <span class="font-game text-lg md:text-xl font-bold text-slate-900 mt-1">${p.name}</span>
+            <span class="px-3 py-0.5 rounded-full text-xs md:text-sm font-extrabold border border-slate-300" style="background:${p.colorHex}; color:${['White','Yellow','Gray'].includes(p.color) ? '#0f172a' : '#ffffff'}">
+              ${p.color}
+            </span>
+          </button>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function clickVocabCard(id) {
+  audio.sfx('card');
+  state.selectedPetId = id;
+  const p = PETS.find(x => x.id === id);
+  speakEnglish(`It's a ${p.name}. It's ${p.color}.`);
+  render();
+}
+
+// SECTION 4: SENTENCE BUILDER
+function buildLearnSection4() {
+  const idx = PETS.findIndex(p => p.id === state.selectedPetId);
+  const pet = idx >= 0 ? PETS[idx] : PETS[0];
+
+  return `
+    <div class="w-full h-full flex flex-col justify-between items-center text-center">
+      <!-- Pet Selector Strip -->
+      <div class="flex flex-wrap justify-center gap-2">
+        ${PETS.map(p => `
+          <button onclick="selectBuilderPet('${p.id}')" class="btn-game px-3 py-1.5 rounded-xl font-bold text-sm md:text-base border-2 ${p.id === pet.id ? 'bg-sky-600 text-white border-sky-900' : 'bg-slate-100 text-slate-800 border-slate-300'}">
+            ${p.emoji} ${p.name}
+          </button>
+        `).join('')}
+      </div>
+
+      <!-- Visual Sentence Pattern Display -->
+      <div class="my-auto flex flex-col md:flex-row items-center justify-center gap-6 w-full max-w-5xl bg-amber-50 p-5 rounded-3xl border-4 border-amber-300">
+        <div class="animate-pet bg-white p-4 rounded-3xl border-4 border-sky-300 shadow-md">
+          ${getPetSVG(pet.id, null, false, 'w-32 h-32 md:w-40 md:h-40')}
+        </div>
+
+        <div class="flex flex-col gap-3 text-left">
+          <div class="text-xs font-extrabold uppercase tracking-wider text-slate-500">Pola Kalimat (Sentence Pattern):</div>
+          <div class="bg-white px-6 py-3 rounded-2xl border-4 border-sky-400 shadow font-game text-3xl md:text-4xl font-bold text-slate-800">
+            It's a <span class="text-rose-600 bg-rose-100 px-3 py-0.5 rounded-xl">${pet.name.toLowerCase()}</span>.
+          </div>
+          <div class="bg-white px-6 py-3 rounded-2xl border-4 border-emerald-400 shadow font-game text-3xl md:text-4xl font-bold text-slate-800">
+            It's <span class="text-indigo-600 bg-indigo-100 px-3 py-0.5 rounded-xl">${pet.color.toLowerCase()}</span>.
+          </div>
+          <div class="flex gap-3 text-sm font-extrabold">
+            <span class="text-rose-600">■ Nama Hewan (Noun)</span>
+            <span class="text-indigo-600">■ Warna Hewan (Adjective)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex flex-wrap justify-center gap-4">
+        <button onclick="speakEnglish('It is a ${pet.name}. It is ${pet.color}.')" class="btn-game px-6 py-3 rounded-2xl bg-emerald-500 text-white font-game text-xl font-bold border-2 border-emerald-700">
+          🔊 LISTEN
+        </button>
+        <button onclick="speakEnglish('Repeat after me! It is a ${pet.name}. It is ${pet.color}.')" class="btn-game px-6 py-3 rounded-2xl bg-sky-500 text-white font-game text-xl font-bold border-2 border-sky-700">
+          🔁 REPEAT WITH CLASS
+        </button>
+        <button onclick="nextBuilderPet()" class="btn-game px-6 py-3 rounded-2xl bg-amber-400 text-slate-900 font-game text-xl font-bold border-2 border-amber-600">
+          NEXT PET ➡️
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function selectBuilderPet(id) {
+  audio.sfx('click');
+  state.selectedPetId = id;
+  const p = PETS.find(x => x.id === id);
+  speakEnglish(`It's a ${p.name}. It's ${p.color}.`);
+  render();
+}
+
+function nextBuilderPet() {
+  const idx = PETS.findIndex(p => p.id === state.selectedPetId);
+  const next = PETS[(idx + 1) % PETS.length];
+  selectBuilderPet(next.id);
+}
+
+// SECTION 5: WHAT IS YOUR FAVORITE PET? (DIALOGUE)
+function buildLearnSection5() {
+  const pet = PETS.find(p => p.id === state.dialoguePetId) || PETS[0];
+  const lines = [
+    { speaker: 'A', text: "What is your favorite pet?" },
+    { speaker: 'B', text: `My favorite pet is a ${pet.name.toLowerCase()}.` },
+    { speaker: 'A', text: `What color is the ${pet.name.toLowerCase()}?` },
+    { speaker: 'B', text: `It's ${pet.color.toLowerCase()}.` }
+  ];
+
+  return `
+    <div class="w-full h-full flex flex-col justify-between">
+      <div class="flex items-center justify-between bg-purple-100 px-4 py-2 rounded-2xl border-2 border-purple-300">
+        <span class="font-game text-lg md:text-xl font-bold text-purple-900">💬 Klik gelembung dialog atau tombol di bawah untuk melatih percakapan!</span>
+        <button onclick="changeDialoguePet()" class="btn-game px-4 py-1.5 rounded-xl bg-amber-400 text-slate-900 font-extrabold text-sm md:text-base border-2 border-amber-600">
+          🔄 CHANGE PET (${pet.name})
+        </button>
+      </div>
+
+      <div class="grid grid-cols-12 gap-4 items-center my-auto">
+        <!-- Student A -->
+        <div class="col-span-3 flex flex-col items-center">
+          <div class="w-24 h-24 md:w-28 md:h-28 rounded-full bg-sky-200 border-4 border-sky-500 flex items-center justify-center text-6xl shadow-md animate-pet">👦</div>
+          <span class="font-game text-xl font-bold text-sky-900 mt-2 bg-sky-100 px-4 py-0.5 rounded-full">Student A</span>
+        </div>
+
+        <!-- Speech Bubbles -->
+        <div class="col-span-6 flex flex-col gap-2.5">
+          ${lines.map(l => `
+            <button onclick="speakEnglish('${l.text.replace(/'/g, "\\'")}')" class="btn-game text-left px-5 py-2.5 rounded-2xl border-3 ${l.speaker === 'A' ? 'bg-sky-50 border-sky-400 mr-6' : 'bg-emerald-50 border-emerald-400 ml-6'} flex items-center justify-between">
+              <div>
+                <span class="font-extrabold text-xs uppercase ${l.speaker === 'A' ? 'text-sky-600' : 'text-emerald-600'}">Student ${l.speaker}:</span>
+                <div class="font-game text-lg md:text-xl font-bold text-slate-800">"${l.text}"</div>
+              </div>
+              <span class="text-xl">🔊</span>
+            </button>
+          `).join('')}
+        </div>
+
+        <!-- Student B + Pet -->
+        <div class="col-span-3 flex flex-col items-center">
+          <div class="relative">
+            <div class="w-24 h-24 md:w-28 md:h-28 rounded-full bg-pink-200 border-4 border-pink-500 flex items-center justify-center text-6xl shadow-md animate-pet">👧</div>
+            <div class="absolute -bottom-3 -right-4 bg-white rounded-full p-1 border-2 border-amber-400 shadow">
+              ${getPetSVG(pet.id, null, false, 'w-12 h-12')}
+            </div>
+          </div>
+          <span class="font-game text-xl font-bold text-pink-900 mt-3 bg-pink-100 px-4 py-0.5 rounded-full">Student B</span>
+        </div>
+      </div>
+
+      <!-- Bottom Controls -->
+      <div class="flex justify-center gap-4">
+        <button onclick="playFullDialogue()" class="btn-game px-6 py-2.5 rounded-2xl bg-emerald-500 text-white font-game text-xl font-bold border-2 border-emerald-700">
+          ▶️ PLAY DIALOGUE
+        </button>
+        <button onclick="playFullDialogue()" class="btn-game px-6 py-2.5 rounded-2xl bg-sky-500 text-white font-game text-xl font-bold border-2 border-sky-700">
+          🔁 REPEAT DIALOGUE
+        </button>
+        <button onclick="unlockBadge('animal', true)" class="btn-game px-6 py-2.5 rounded-2xl bg-purple-600 text-white font-game text-xl font-bold border-2 border-purple-800">
+          🏅 SELESAI MATERI
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function changeDialoguePet() {
+  audio.sfx('click');
+  const idx = PETS.findIndex(p => p.id === state.dialoguePetId);
+  state.dialoguePetId = PETS[(idx + 1) % PETS.length].id;
+  render();
+}
+
+function playFullDialogue() {
+  audio.sfx('click');
+  const pet = PETS.find(p => p.id === state.dialoguePetId) || PETS[0];
+  const full = `What is your favorite pet? My favorite pet is a ${pet.name}. What color is the ${pet.name}? It's ${pet.color}.`;
+  speakEnglish(full);
+}
+
+/**
+ * ============================================================================
+ * 10. HALAMAN 4: LISTENING GAME – LISTEN AND GUESS (10 TANTANGAN)
+ * ============================================================================
+ */
+function renderListeningGame(vp) {
+  document.getElementById('header-title').textContent = 'LISTEN & GUESS';
+  document.getElementById('header-subtitle').textContent = `Listening Challenge ${state.listenIdx + 1} of ${LISTENING_CHALLENGES.length}`;
+
+  const item = LISTENING_CHALLENGES[state.listenIdx];
+
+  vp.innerHTML = `
+    <div class="screen-enter w-full h-full flex flex-col justify-between items-center text-center">
+      <!-- Top Score & Progress -->
+      <div class="w-full max-w-5xl flex items-center justify-between bg-white/90 px-6 py-2.5 rounded-2xl border-4 border-emerald-400 shadow">
+        <span class="font-game text-xl md:text-2xl font-bold text-emerald-800">🎧 Challenge ${state.listenIdx + 1} / ${LISTENING_CHALLENGES.length}</span>
+        <span class="font-game text-xl md:text-2xl font-bold text-amber-600">⭐ Score: ${state.listenScore}</span>
+      </div>
+
+      <!-- Big Audio Prompt Box -->
+      <div class="bg-white/95 rounded-3xl border-4 border-sky-400 p-5 max-w-4xl w-full shadow-xl flex flex-col items-center">
+        <button onclick="playListeningClue()" class="btn-game pulse-cta bg-gradient-to-r from-emerald-400 to-teal-500 text-white font-game text-2xl md:text-3xl font-bold px-10 py-4 rounded-full border-4 border-emerald-700 flex items-center gap-3">
+          <span>🔊</span> <span>START LISTENING / REPEAT</span>
+        </button>
+        <p class="text-slate-600 font-bold text-base md:text-lg mt-3">
+          Dengarkan deskripsi hewan dengan saksama, lalu pilih gambar hewan yang tepat di layar PID!
+        </p>
+      </div>
+
+      <!-- 4 Big Pet Picture Choices -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 max-w-5xl w-full my-auto">
+        ${item.options.map(optId => {
+          const p = PETS.find(x => x.id === optId);
+          return `
+            <button onclick="checkListeningAnswer('${optId}')" class="btn-game bg-white hover:bg-amber-50 rounded-3xl p-4 border-4 border-sky-300 flex flex-col items-center justify-center shadow-lg">
+              ${getPetSVG(p.id, null, false, 'w-24 h-24 md:w-28 md:h-28')}
+              <span class="font-game text-2xl font-bold text-slate-800 mt-2">${p.name}</span>
+            </button>
+          `;
+        }).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function playListeningClue() {
+  audio.sfx('click');
+  const item = LISTENING_CHALLENGES[state.listenIdx];
+  speakEnglish(item.text);
+}
+
+function checkListeningAnswer(chosenId) {
+  const item = LISTENING_CHALLENGES[state.listenIdx];
+  if (chosenId === item.answer) {
+    audio.sfx('correct');
+    state.listenScore += 100;
+    const p = PETS.find(x => x.id === chosenId);
+    speakEnglish(`Awesome! It's a ${p.name}!`);
+    showFeedback('🌟', 'BENAR! GREAT LISTENING!', `Hebat! Jawabannya adalah ${p.name} (${p.color}).`, () => {
+      if (state.listenIdx + 1 < LISTENING_CHALLENGES.length) {
+        state.listenIdx++;
+        render();
+        setTimeout(() => playListeningClue(), 400);
+      } else {
+        state.listenIdx = 0;
+        unlockBadge('listening', true);
+        goToScreen('dashboard');
+      }
+    }, state.listenIdx + 1 === LISTENING_CHALLENGES.length);
+  } else {
+    audio.sfx('wrong');
+    speakEnglish("Not quite! Listen again and try one more time.");
+    showFeedback('🤔', 'COBA LAGI YUK!', 'Dengarkan kembali petunjuk warnanya dan coba pilih lagi!', () => {
+      playListeningClue();
+    });
+  }
+}
+
+/**
+ * ============================================================================
+ * 11. HALAMAN 5: INDIVIDUAL GAME HUB & 4 GAME INDIVIDU
+ * ============================================================================
+ */
+function renderIndivHub(vp) {
+  document.getElementById('header-title').textContent = 'INDIVIDUAL GAMES';
+  document.getElementById('header-subtitle').textContent = 'Pilih Game untuk Dimainkan Siswa di Depan PID';
+
+  const games = [
+    { id: 'indiv_quiz', title: 'GAME 1: PET QUIZ', desc: '15 Soal Tebak Nama & Warna Hewan', icon: '❓', color: 'from-amber-400 to-orange-500', border: 'border-orange-700' },
+    { id: 'indiv_color', title: 'GAME 2: COLOR THE PET', desc: '8 Tantangan Mewarnai Hewan Interaktif', icon: '🎨', color: 'from-pink-500 to-rose-600', border: 'border-rose-800' },
+    { id: 'indiv_scramble', title: 'GAME 3: WORD SCRAMBLE', desc: 'Susun Huruf Acak Nama Hewan (Drag/Tap)', icon: '🔤', color: 'from-sky-400 to-blue-600', border: 'border-blue-800' },
+    { id: 'indiv_read', title: 'GAME 4: READ & CIRCLE', desc: '5 Cerita Pendek & Pemahaman Bacaan', icon: '📖', color: 'from-emerald-400 to-teal-600', border: 'border-teal-800' }
+  ];
+
+  vp.innerHTML = `
+    <div class="screen-enter w-full h-full flex flex-col justify-center items-center">
+      <h2 class="font-game text-3xl md:text-4xl font-bold text-slate-900 bg-white/90 px-8 py-2 rounded-full border-4 border-purple-400 mb-6 shadow">
+        🎮 PILIH PERMAINAN INDIVIDU (SISWA MAJU KE PID)
+      </h2>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-5xl w-full px-4">
+        ${games.map(g => `
+          <button onclick="launchIndivGame('${g.id}')" class="btn-game bg-gradient-to-br ${g.color} text-white rounded-3xl p-6 border-4 ${g.border} flex items-center gap-5 text-left">
+            <div class="text-6xl md:text-7xl bg-white/20 p-4 rounded-2xl">${g.icon}</div>
+            <div>
+              <h3 class="font-game text-2xl md:text-3xl font-bold">${g.title}</h3>
+              <p class="text-base md:text-lg font-bold text-white/90 mt-1">${g.desc}</p>
+            </div>
+          </button>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function launchIndivGame(id) {
+  if (id === 'indiv_quiz') { state.quizIdx = 0; state.quizScore = 0; }
+  if (id === 'indiv_color') { state.colorIdx = 0; state.currentPaintedHex = '#e2e8f0'; }
+  if (id === 'indiv_scramble') { initScrambleRound(0); }
+  if (id === 'indiv_read') { state.readIdx = 0; state.readAnswers = {}; }
+  goToScreen(id);
+}
+
+// --- GAME 1: PET QUIZ (15 SOAL) ---
+function renderIndivQuiz(vp) {
+  document.getElementById('header-title').textContent = 'PET QUIZ';
+  document.getElementById('header-subtitle').textContent = `Soal ${state.quizIdx + 1} dari ${QUIZ_QUESTIONS.length}`;
+
+  const q = QUIZ_QUESTIONS[state.quizIdx];
+
+  vp.innerHTML = `
+    <div class="screen-enter w-full h-full flex flex-col justify-between items-center">
+      <!-- Top Bar -->
+      <div class="w-full max-w-5xl flex items-center justify-between bg-white/95 px-6 py-2.5 rounded-2xl border-4 border-amber-400 shadow">
+        <span class="font-game text-xl md:text-2xl font-bold text-slate-800">Soal ${state.quizIdx + 1} / ${QUIZ_QUESTIONS.length}</span>
+        ${state.settings.timerEnabled ? `<span id="quiz-timer" class="font-game text-2xl font-bold text-rose-600 bg-rose-100 px-4 py-0.5 rounded-full">⏱️ ${state.settings.timerSec}s</span>` : ''}
+        <span class="font-game text-xl md:text-2xl font-bold text-emerald-600">⭐ Score: ${state.quizScore}</span>
+      </div>
+
+      <!-- Question Card -->
+      <div class="bg-white/95 rounded-3xl border-4 border-sky-400 p-5 max-w-5xl w-full my-auto shadow-xl grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+        <div class="md:col-span-5 flex flex-col items-center justify-center bg-sky-50 rounded-2xl p-4 border-2 border-sky-200">
+          <div class="animate-pet">${getPetSVG(q.pet, null, false, 'w-36 h-36 md:w-44 md:h-44')}</div>
+        </div>
+
+        <div class="md:col-span-7 flex flex-col gap-4">
+          <div class="flex items-center justify-between">
+            <h2 class="font-game text-3xl md:text-4xl font-bold text-slate-900">${q.q}</h2>
+            <button onclick="speakEnglish('${q.q}')" class="btn-game bg-sky-500 text-white p-3 rounded-2xl text-2xl border-2 border-sky-700">🔊</button>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            ${q.opts.map(opt => `
+              <button onclick="answerIndivQuiz('${opt}')" class="btn-game py-4 px-5 rounded-2xl bg-amber-300 hover:bg-amber-400 text-slate-900 font-game text-2xl md:text-3xl font-bold border-4 border-amber-600">
+                ${opt}
+              </button>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  startGameTimer(() => {
+    audio.sfx('wrong');
+    showFeedback('⏰', 'WAKTU HABIS!', `Jawaban yang benar adalah: ${q.ans}`, () => nextIndivQuiz());
+  }, (t) => {
+    const el = document.getElementById('quiz-timer');
+    if (el) el.textContent = `⏱️ ${t}s`;
+  });
+}
+
+function answerIndivQuiz(opt) {
+  clearGameTimer();
+  const q = QUIZ_QUESTIONS[state.quizIdx];
+  if (opt === q.ans) {
+    audio.sfx('correct');
+    state.quizScore += 100;
+    speakEnglish(`Correct! ${q.ans}!`);
+    showFeedback('🎉', 'CORRECT! +100 POIN', `Luar biasa! Jawabannya memang ${q.ans}.`, () => nextIndivQuiz());
+  } else {
+    audio.sfx('wrong');
+    speakEnglish(`Oops! The answer is ${q.ans}.`);
+    showFeedback('💡', 'BELUM TEPAT!', `Jawaban yang benar adalah ${q.ans}. Tetap semangat!`, () => nextIndivQuiz());
+  }
+}
+
+function nextIndivQuiz() {
+  if (state.quizIdx + 1 < QUIZ_QUESTIONS.length) {
+    state.quizIdx++;
+    render();
+  } else {
+    unlockBadge('animal', true);
+    goToScreen('dashboard');
+  }
+}
+
+// --- GAME 2: COLOR THE PET (8 TANTANGAN) ---
+function renderIndivColor(vp) {
+  document.getElementById('header-title').textContent = 'COLOR THE PET';
+  document.getElementById('header-subtitle').textContent = `Tantangan Warna ${state.colorIdx + 1} dari ${COLOR_CHALLENGES.length}`;
+
+  const item = COLOR_CHALLENGES[state.colorIdx];
+  const painted = state.currentPaintedHex || '#e2e8f0';
+
+  vp.innerHTML = `
+    <div class="screen-enter w-full h-full flex flex-col justify-between items-center text-center">
+      <!-- Instruction Banner -->
+      <div class="bg-white/95 px-8 py-3 rounded-3xl border-4 border-pink-400 shadow-lg flex items-center gap-4">
+        <span class="text-4xl">🎨</span>
+        <h2 class="font-game text-2xl md:text-4xl font-bold text-slate-900">${item.instruction}</h2>
+        <button onclick="speakEnglish('${item.instruction}')" class="btn-game bg-pink-500 text-white px-4 py-2 rounded-xl font-bold text-lg border-2 border-pink-700">🔊</button>
+      </div>
+
+      <!-- Canvas Pet Display -->
+      <div class="my-auto bg-white/95 p-6 rounded-3xl border-4 border-sky-300 shadow-xl flex flex-col items-center">
+        <div id="color-pet-preview" class="transition-transform duration-300">
+          ${getPetSVG(item.pet, painted, false, 'w-44 h-44 md:w-52 md:h-52')}
+        </div>
+        <span class="font-game text-2xl font-bold text-slate-700 mt-2 uppercase">${item.pet}</span>
+      </div>
+
+      <!-- Interactive Color Palette -->
+      <div class="bg-white/90 p-3 rounded-3xl border-4 border-amber-400 shadow-lg flex flex-wrap justify-center gap-3 max-w-4xl w-full">
+        ${COLOR_PALETTE.map(c => `
+          <button onclick="applyPetColor('${c.name}', '${c.hex}')" style="background:${c.hex}; color:${c.text}" class="btn-game px-5 py-3 rounded-2xl font-game text-xl font-bold border-4 border-slate-700 min-w-[115px]">
+            ${c.name}
+          </button>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function applyPetColor(colorName, hex) {
+  const item = COLOR_CHALLENGES[state.colorIdx];
+  state.currentPaintedHex = hex;
+  render();
+
+  if (colorName === item.targetColor) {
+    audio.sfx('correct');
+    triggerConfetti(1800);
+    speakEnglish(`Wonderful! It's a ${colorName} ${item.pet}!`);
+    setTimeout(() => {
+      showFeedback('🌈', 'WARNA SEMPURNA!', `Hebat! Kamu mewarnai ${item.pet} dengan warna ${colorName}.`, () => {
+        if (state.colorIdx + 1 < COLOR_CHALLENGES.length) {
+          state.colorIdx++;
+          state.currentPaintedHex = '#e2e8f0';
+          render();
+        } else {
+          unlockBadge('color', true);
+          goToScreen('indiv_hub');
+        }
+      });
+    }, 350);
+  } else {
+    audio.sfx('wrong');
+    speakEnglish(`That is ${colorName}. Try ${item.targetColor}!`);
+  }
+}
+
+// --- GAME 3: WORD SCRAMBLE ---
+function initScrambleRound(idx) {
+  state.scrambleIdx = idx;
+  const word = SCRAMBLE_WORDS[idx];
+  const letters = word.split('').map((ch, i) => ({ id: i, ch }));
+  // Shuffle
+  for (let i = letters.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [letters[i], letters[j]] = [letters[j], letters[i]];
+  }
+  state.scramblePool = letters;
+  state.scrambleAnswer = [];
+}
+
+function renderIndivScramble(vp) {
+  document.getElementById('header-title').textContent = 'WORD SCRAMBLE';
+  document.getElementById('header-subtitle').textContent = `Kata ${state.scrambleIdx + 1} dari ${SCRAMBLE_WORDS.length}`;
+
+  const word = SCRAMBLE_WORDS[state.scrambleIdx];
+  const petId = word.toLowerCase();
+
+  vp.innerHTML = `
+    <div class="screen-enter w-full h-full flex flex-col justify-between items-center text-center">
+      <div class="w-full max-w-4xl flex items-center justify-between bg-white/95 px-6 py-2 rounded-2xl border-4 border-sky-400">
+        <span class="font-game text-xl font-bold text-sky-900">🔤 Susun Huruf Hewan (${state.scrambleIdx + 1}/${SCRAMBLE_WORDS.length})</span>
+        <span class="font-game text-xl font-bold text-amber-600">⭐ Score: ${state.scrambleScore}</span>
+      </div>
+
+      <!-- Pet Visual Hint -->
+      <div class="bg-white/95 p-4 rounded-3xl border-4 border-amber-400 shadow-lg flex flex-col items-center">
+        ${getPetSVG(petId, null, false, 'w-28 h-28 md:w-32 md:h-32')}
+        <button onclick="speakEnglish('${petId}')" class="btn-game mt-1 px-4 py-1 rounded-full bg-sky-100 text-sky-800 font-extrabold text-sm border border-sky-300">🔊 Dengar Kata</button>
+      </div>
+
+      <!-- Answer Slots -->
+      <div class="flex flex-wrap justify-center gap-2.5 my-2">
+        ${word.split('').map((_, idx) => {
+          const placed = state.scrambleAnswer[idx];
+          return `
+            <button onclick="removeScrambleLetter(${idx})" class="w-16 h-16 md:w-20 md:h-20 rounded-2xl border-4 ${placed ? 'bg-emerald-400 border-emerald-700 text-white btn-game' : 'bg-white/80 border-dashed border-slate-500 text-slate-400'} font-game text-4xl font-bold flex items-center justify-center shadow">
+              ${placed ? placed.ch : '_'}
+            </button>
+          `;
+        }).join('')}
+      </div>
+
+      <!-- Scrambled Letter Tiles (Tap or Drag) -->
+      <div class="flex flex-wrap justify-center gap-3 bg-white/90 p-4 rounded-3xl border-4 border-indigo-300 shadow">
+        ${state.scramblePool.map(item => `
+          <button onclick="pickScrambleLetter(${item.id})" class="btn-game w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-amber-300 border-4 border-amber-600 font-game text-4xl font-bold text-slate-900 flex items-center justify-center">
+            ${item.ch}
+          </button>
+        `).join('')}
+        <button onclick="initScrambleRound(${state.scrambleIdx}); render();" class="btn-game px-4 rounded-2xl bg-slate-200 border-2 border-slate-400 font-extrabold text-slate-700">🔄 RESET</button>
+      </div>
+    </div>
+  `;
+}
+
+function pickScrambleLetter(id) {
+  audio.sfx('click');
+  const idx = state.scramblePool.findIndex(x => x.id === id);
+  if (idx === -1) return;
+  const [item] = state.scramblePool.splice(idx, 1);
+  state.scrambleAnswer.push(item);
+  render();
+
+  const target = SCRAMBLE_WORDS[state.scrambleIdx];
+  if (state.scrambleAnswer.length === target.length) {
+    const formed = state.scrambleAnswer.map(x => x.ch).join('');
+    if (formed === target) {
+      audio.sfx('correct');
+      state.scrambleScore += 100;
+      speakEnglish(`Excellent! ${target}!`);
+      showFeedback('🏆', 'EJAAN BENAR!', `Hebat! Kamu berhasil menyusun kata ${target}.`, () => {
+        if (state.scrambleIdx + 1 < SCRAMBLE_WORDS.length) {
+          initScrambleRound(state.scrambleIdx + 1);
+          render();
+        } else {
+          unlockBadge('spelling', true);
+          goToScreen('indiv_hub');
+        }
+      });
+    } else {
+      audio.sfx('wrong');
+      speakEnglish("Try again!");
+      setTimeout(() => {
+        initScrambleRound(state.scrambleIdx);
+        render();
+      }, 650);
+    }
+  }
+}
+
+function removeScrambleLetter(ansIdx) {
+  if (!state.scrambleAnswer[ansIdx]) return;
+  audio.sfx('click');
+  const [item] = state.scrambleAnswer.splice(ansIdx, 1);
+  state.scramblePool.push(item);
+  render();
+}
+
+// --- GAME 4: READ AND CIRCLE (5 SET CERITA) ---
+function renderIndivRead(vp) {
+  document.getElementById('header-title').textContent = 'READ AND CIRCLE';
+  document.getElementById('header-subtitle').textContent = `Cerita ${state.readIdx + 1} dari ${READ_CIRCLE_STORIES.length}`;
+
+  const st = READ_CIRCLE_STORIES[state.readIdx];
+
+  vp.innerHTML = `
+    <div class="screen-enter w-full h-full grid grid-cols-1 md:grid-cols-12 gap-4 items-stretch">
+      <!-- Left: Short Story Card -->
+      <div class="md:col-span-5 bg-amber-50 rounded-3xl border-4 border-amber-400 p-5 flex flex-col justify-between shadow-lg">
+        <div>
+          <span class="bg-amber-400 text-slate-900 px-3 py-1 rounded-full font-extrabold text-xs uppercase">Story ${state.readIdx + 1} / ${READ_CIRCLE_STORIES.length}</span>
+          <h2 class="font-game text-2xl md:text-3xl font-bold text-slate-900 mt-2">${st.title}</h2>
+        </div>
+
+        <div class="my-auto flex flex-col items-center bg-white p-4 rounded-2xl border-2 border-amber-200">
+          ${getPetSVG(st.pet, null, false, 'w-24 h-24')}
+          <p class="text-lg md:text-xl font-bold text-slate-800 leading-relaxed mt-3 text-left">
+            "${st.story}"
+          </p>
+        </div>
+
+        <button onclick="speakEnglish('${st.story.replace(/'/g, "\\'")}')" class="btn-game w-full py-3 rounded-2xl bg-sky-500 text-white font-game text-xl font-bold border-2 border-sky-700">
+          🔊 BACA CERITA (AUDIO)
+        </button>
+      </div>
+
+      <!-- Right: Comprehension Questions (Circle the Answer) -->
+      <div class="md:col-span-7 bg-white/95 rounded-3xl border-4 border-emerald-400 p-5 flex flex-col justify-between shadow-lg">
+        <h3 class="font-game text-2xl font-bold text-emerald-800">⭕ Lingkari / Pilih Jawaban yang Tepat:</h3>
+
+        <div class="space-y-3 my-auto">
+          ${st.questions.map((q, qIndex) => {
+            const chosen = state.readAnswers[qIndex];
+            return `
+              <div class="bg-slate-50 p-3 rounded-2xl border-2 border-slate-200">
+                <div class="font-extrabold text-base md:text-lg text-slate-900 mb-2">${qIndex + 1}. ${q.q}</div>
+                <div class="flex flex-wrap gap-2">
+                  ${q.opts.map(opt => {
+                    const isPicked = chosen === opt;
+                    const isCorrect = opt === q.ans;
+                    let cls = 'bg-white border-slate-300 text-slate-800';
+                    if (isPicked) cls = isCorrect ? 'bg-emerald-500 border-emerald-700 text-white ring-4 ring-emerald-200' : 'bg-rose-500 border-rose-700 text-white';
+                    return `
+                      <button onclick="selectReadOption(${qIndex}, '${opt.replace(/'/g, "\\'")}')" class="btn-game px-4 py-1.5 rounded-full border-2 font-bold text-sm md:text-base ${cls}">
+                        ${opt}
+                      </button>
+                    `;
+                  }).join('')}
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+
+        <div class="flex justify-end">
+          <button onclick="nextReadStory()" class="btn-game px-6 py-2.5 rounded-2xl bg-emerald-500 text-white font-game text-xl font-bold border-2 border-emerald-700">
+            ${state.readIdx + 1 < READ_CIRCLE_STORIES.length ? 'NEXT STORY ➡️' : 'FINISH READING 🏆'}
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function selectReadOption(qIndex, opt) {
+  const st = READ_CIRCLE_STORIES[state.readIdx];
+  state.readAnswers[qIndex] = opt;
+  if (opt === st.questions[qIndex].ans) {
+    audio.sfx('correct');
+    speakEnglish("Correct!");
+  } else {
+    audio.sfx('wrong');
+    speakEnglish("Try again!");
+  }
+  render();
+}
+
+function nextReadStory() {
+  audio.sfx('click');
+  if (state.readIdx + 1 < READ_CIRCLE_STORIES.length) {
+    state.readIdx++;
+    state.readAnswers = {};
+    render();
+  } else {
+    unlockBadge('explorer', true);
+    goToScreen('indiv_hub');
+  }
+}
+
+/**
+ * ============================================================================
+ * 12. HALAMAN 6: GROUP DUEL – PET BATTLE (TEAM A VS TEAM B, 6 MODES + FINAL)
+ * ============================================================================
+ */
+function renderDuel(vp) {
+  document.getElementById('header-title').textContent = 'PET BATTLE – GROUP DUEL';
+  document.getElementById('header-subtitle').textContent = `${state.duel.teamA} vs ${state.duel.teamB}`;
+
+  const d = state.duel;
+
+  if (d.finished) {
+    const winner = d.scoreA > d.scoreB ? d.teamA : (d.scoreB > d.scoreA ? d.teamB : 'DRAW (SERI!)');
+    vp.innerHTML = `
+      <div class="screen-enter w-full h-full flex flex-col items-center justify-center text-center bg-white/95 rounded-3xl border-8 border-amber-400 p-6 shadow-2xl">
+        <div class="text-7xl mb-2 animate-bounce">🏆👑🏆</div>
+        <h2 class="font-game text-5xl md:text-6xl font-bold text-amber-500 drop-shadow">WINNER!</h2>
+        <div class="font-game text-4xl md:text-5xl font-bold text-slate-900 my-2 bg-amber-100 px-8 py-2 rounded-full border-4 border-amber-400">
+          ${winner}
+        </div>
+        <p class="font-game text-2xl md:text-3xl font-bold text-emerald-600 mb-4">GREAT JOB, PET CHAMPIONS!</p>
+        <div class="flex gap-8 text-2xl font-extrabold mb-6">
+          <div class="bg-sky-100 px-6 py-3 rounded-2xl border-2 border-sky-400 text-sky-900">${d.teamA}: ${d.scoreA} PTS</div>
+          <div class="bg-rose-100 px-6 py-3 rounded-2xl border-2 border-rose-400 text-rose-900">${d.teamB}: ${d.scoreB} PTS</div>
+        </div>
+        <div class="flex gap-4">
+          <button onclick="resetDuelMatch()" class="btn-game px-6 py-3 rounded-2xl bg-emerald-500 text-white font-game text-2xl font-bold border-2 border-emerald-700">🔄 PLAY AGAIN</button>
+          <button onclick="unlockBadge('champion', true); navigateHome();" class="btn-game px-6 py-3 rounded-2xl bg-purple-600 text-white font-game text-2xl font-bold border-2 border-purple-800">🏅 CLAIM CHAMPION BADGE</button>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  const totalScore = Math.max(100, d.scoreA + d.scoreB);
+  const pctA = Math.min(85, Math.max(15, Math.round((d.scoreA / totalScore) * 100)));
+
+  const modes = [
+    { id: 1, label: 'M1: Quick Answer' },
+    { id: 2, label: 'M2: Guess Pet' },
+    { id: 3, label: 'M3: Spelling' },
+    { id: 4, label: 'M4: Sentence' },
+    { id: 5, label: 'M5: Listening' },
+    { id: 6, label: 'M6: Pet Show' },
+    { id: 'final', label: '🏆 FINAL ROUND' }
+  ];
+
+  vp.innerHTML = `
+    <div class="screen-enter w-full h-full flex flex-col justify-between gap-2">
+      <!-- Top Mode Selector & Teacher Controls -->
+      <div class="flex flex-wrap items-center justify-between gap-1.5 bg-white/90 px-3 py-1.5 rounded-2xl border-2 border-slate-300">
+        <div class="flex flex-wrap gap-1.5">
+          ${modes.map(m => `
+            <button onclick="switchDuelMode(${typeof m.id === 'string' ? `'${m.id}'` : m.id})" class="btn-game px-3 py-1 rounded-xl font-extrabold text-xs md:text-sm border-2 ${d.mode === m.id ? 'bg-rose-600 text-white border-rose-900' : 'bg-slate-100 text-slate-800 border-slate-300'}">
+              ${m.label}
+            </button>
+          `).join('')}
+        </div>
+        <div class="flex gap-1.5">
+          <button onclick="openTeacherControlModal()" class="btn-game px-3 py-1 rounded-xl bg-amber-300 text-slate-900 font-extrabold text-xs border border-amber-600">✏️ EDIT TEAM</button>
+          <button onclick="finishDuelMatch()" class="btn-game px-3 py-1 rounded-xl bg-purple-600 text-white font-extrabold text-xs border border-purple-800">🏁 END & WINNER</button>
+        </div>
+      </div>
+
+      <!-- Tug-of-War Battle Progress Bar -->
+      <div class="w-full h-5 bg-rose-500 rounded-full overflow-hidden border-2 border-slate-900 flex shadow-inner">
+        <div style="width: ${pctA}%" class="bg-sky-500 h-full transition-all duration-500 flex items-center justify-end pr-2 text-[10px] font-black text-white">⚡</div>
+      </div>
+
+      <!-- Main 3-Column Arena: TEAM A (Left) | ARENA CENTER | TEAM B (Right) -->
+      <div class="flex-1 grid grid-cols-12 gap-3 items-stretch overflow-hidden">
+        <!-- TEAM A PANEL -->
+        <div onclick="setActiveDuelTeam('A')" class="col-span-3 rounded-3xl p-3 border-4 cursor-pointer transition-all flex flex-col items-center justify-between ${d.activeTeam === 'A' ? 'bg-sky-500 text-white border-amber-300 ring-4 ring-amber-300 scale-[1.01]' : 'bg-sky-100 text-sky-950 border-sky-400'}">
+          <div class="text-center">
+            <span class="px-3 py-0.5 rounded-full text-xs font-black uppercase ${d.activeTeam === 'A' ? 'bg-amber-300 text-slate-900' : 'bg-sky-200 text-sky-800'}">
+              ${d.activeTeam === 'A' ? '🔥 GILIRAN MENJAWAB' : 'KLIK PILIH TIM A'}
+            </span>
+            <h3 class="font-game text-xl md:text-2xl font-bold mt-1">${d.teamA}</h3>
+          </div>
+          <div class="my-auto">${getPetSVG('rabbit', null, false, 'w-24 h-24 md:w-28 md:h-28')}</div>
+          <div class="text-center w-full">
+            <div class="font-game text-4xl md:text-5xl font-bold">${d.scoreA}</div>
+            <div class="text-xs font-extrabold uppercase">POINTS (Streak: ${d.streakA})</div>
+            <div class="flex justify-center gap-1 mt-2">
+              <button onclick="event.stopPropagation(); adjustTeamScore('A', 100)" class="btn-game px-2.5 py-1 rounded-lg bg-emerald-500 text-white font-black text-xs">+100</button>
+              <button onclick="event.stopPropagation(); adjustTeamScore('A', -50)" class="btn-game px-2.5 py-1 rounded-lg bg-slate-700 text-white font-black text-xs">-50</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- CENTER BATTLE ARENA -->
+        <div class="col-span-6 bg-white/95 rounded-3xl border-4 border-amber-400 p-4 shadow-xl flex flex-col justify-between items-center text-center overflow-hidden">
+          ${buildDuelCenterContent()}
+        </div>
+
+        <!-- TEAM B PANEL -->
+        <div onclick="setActiveDuelTeam('B')" class="col-span-3 rounded-3xl p-3 border-4 cursor-pointer transition-all flex flex-col items-center justify-between ${d.activeTeam === 'B' ? 'bg-rose-600 text-white border-amber-300 ring-4 ring-amber-300 scale-[1.01]' : 'bg-rose-100 text-rose-950 border-rose-400'}">
+          <div class="text-center">
+            <span class="px-3 py-0.5 rounded-full text-xs font-black uppercase ${d.activeTeam === 'B' ? 'bg-amber-300 text-slate-900' : 'bg-rose-200 text-rose-800'}">
+              ${d.activeTeam === 'B' ? '🔥 GILIRAN MENJAWAB' : 'KLIK PILIH TIM B'}
+            </span>
+            <h3 class="font-game text-xl md:text-2xl font-bold mt-1">${d.teamB}</h3>
+          </div>
+          <div class="my-auto">${getPetSVG('cat', null, false, 'w-24 h-24 md:w-28 md:h-28')}</div>
+          <div class="text-center w-full">
+            <div class="font-game text-4xl md:text-5xl font-bold">${d.scoreB}</div>
+            <div class="text-xs font-extrabold uppercase">POINTS (Streak: ${d.streakB})</div>
+            <div class="flex justify-center gap-1 mt-2">
+              <button onclick="event.stopPropagation(); adjustTeamScore('B', 100)" class="btn-game px-2.5 py-1 rounded-lg bg-emerald-500 text-white font-black text-xs">+100</button>
+              <button onclick="event.stopPropagation(); adjustTeamScore('B', -50)" class="btn-game px-2.5 py-1 rounded-lg bg-slate-700 text-white font-black text-xs">-50</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function setActiveDuelTeam(team) {
+  audio.sfx('click');
+  state.duel.activeTeam = team;
+  render();
+}
+
+function adjustTeamScore(team, delta) {
+  audio.sfx(delta > 0 ? 'correct' : 'click');
+  if (team === 'A') state.duel.scoreA = Math.max(0, state.duel.scoreA + delta);
+  else state.duel.scoreB = Math.max(0, state.duel.scoreB + delta);
+  render();
+}
+
+function awardDuelPoints(basePoints) {
+  const team = state.duel.activeTeam;
+  if (team === 'A') {
+    state.duel.streakA++;
+    state.duel.streakB = 0;
+    const bonus = state.duel.streakA >= 2 ? 50 : 0;
+    state.duel.scoreA += basePoints + bonus;
+  } else {
+    state.duel.streakB++;
+    state.duel.streakA = 0;
+    const bonus = state.duel.streakB >= 2 ? 50 : 0;
+    state.duel.scoreB += basePoints + bonus;
+  }
+  // Automatically alternate turn for fairness
+  state.duel.activeTeam = team === 'A' ? 'B' : 'A';
+}
+
+function switchDuelMode(mode) {
+  audio.sfx('start');
+  state.duel.mode = mode;
+  state.duel.qIdx = 0;
+  state.duel.clueCount = 1;
+  state.duel.finished = false;
+  if (mode === 3) initDuelSpelling(0);
+  if (mode === 4) initDuelSentence(0);
+  render();
+}
+
+function finishDuelMatch() {
+  audio.sfx('victory');
+  triggerConfetti(3500);
+  state.duel.finished = true;
+  unlockBadge('team', false);
+  render();
+}
+
+function resetDuelMatch() {
+  state.duel.scoreA = 0;
+  state.duel.scoreB = 0;
+  state.duel.streakA = 0;
+  state.duel.streakB = 0;
+  state.duel.qIdx = 0;
+  state.duel.finished = false;
+  render();
+}
+
+function buildDuelCenterContent() {
+  const d = state.duel;
+  const activeTeamName = d.activeTeam === 'A' ? d.teamA : d.teamB;
+
+  // MODE 1: QUICK ANSWER BATTLE
+  if (d.mode === 1) {
+    const q = QUIZ_QUESTIONS[(d.qIdx + 8) % QUIZ_QUESTIONS.length];
+    return `
+      <div class="bg-amber-100 px-4 py-1 rounded-full font-extrabold text-xs text-amber-900">MODE 1: QUICK ANSWER • GILIRAN: ${activeTeamName}</div>
+      <div class="my-auto flex flex-col items-center">
+        ${getPetSVG(q.pet, null, false, 'w-28 h-28')}
+        <h3 class="font-game text-2xl md:text-3xl font-bold text-slate-900 mt-2 uppercase">${q.q}</h3>
+      </div>
+      <div class="grid grid-cols-2 gap-2.5 w-full">
+        ${q.opts.map(opt => `
+          <button onclick="handleDuelQuickAns('${opt}', '${q.ans}')" class="btn-game py-3 rounded-2xl bg-amber-300 hover:bg-amber-400 text-slate-900 font-game text-xl md:text-2xl font-bold border-3 border-amber-600 uppercase">
+            ${opt}
+          </button>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  // MODE 2: GUESS THE PET (CLUES)
+  if (d.mode === 2) {
+    const item = GUESS_PET_CLUES[d.qIdx % GUESS_PET_CLUES.length];
+    const pts = d.clueCount === 1 ? 150 : (d.clueCount === 2 ? 125 : 100);
+    return `
+      <div class="bg-purple-100 px-4 py-1 rounded-full font-extrabold text-xs text-purple-900">MODE 2: GUESS THE PET (POTENSI: +${pts} POIN)</div>
+      <div class="w-full space-y-2 my-auto">
+        ${item.clues.slice(0, d.clueCount).map((c, i) => `
+          <div class="bg-sky-50 border-2 border-sky-300 rounded-xl p-2 font-game text-lg md:text-xl font-bold text-slate-800">
+            HINT ${i + 1}: ${c}
+          </div>
+        `).join('')}
+        ${d.clueCount < 3 ? `
+          <button onclick="state.duel.clueCount++; audio.sfx('click'); render();" class="btn-game px-4 py-1.5 rounded-xl bg-amber-300 text-slate-900 font-extrabold text-sm border-2 border-amber-600">
+            💡 BUKA HINT BERIKUTNYA
+          </button>
+        ` : ''}
+      </div>
+      <div class="grid grid-cols-4 gap-2 w-full">
+        ${PETS.slice(0, 8).map(p => `
+          <button onclick="handleDuelGuessPet('${p.id}', '${item.pet}', ${pts})" class="btn-game p-1.5 rounded-xl bg-slate-100 hover:bg-emerald-100 border-2 border-slate-300 font-game text-sm font-bold">
+            ${p.emoji} ${p.name}
+          </button>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  // MODE 3: SPELLING BATTLE
+  if (d.mode === 3) {
+    if (!d.scramblePool.length && !d.scrambleAns.length) initDuelSpelling(d.qIdx);
+    const word = SCRAMBLE_WORDS[d.qIdx % SCRAMBLE_WORDS.length];
+    return `
+      <div class="bg-emerald-100 px-4 py-1 rounded-full font-extrabold text-xs text-emerald-900">MODE 3: SPELLING BATTLE (+100 POIN)</div>
+      <div>${getPetSVG(word.toLowerCase(), null, false, 'w-24 h-24')}</div>
+      <div class="flex flex-wrap justify-center gap-1.5">
+        ${word.split('').map((_, i) => `
+          <span class="w-11 h-11 rounded-xl border-3 ${d.scrambleAns[i] ? 'bg-emerald-500 text-white border-emerald-700' : 'bg-slate-100 border-slate-400'} font-game text-2xl font-bold flex items-center justify-center">
+            ${d.scrambleAns[i] ? d.scrambleAns[i].ch : '_'}
+          </span>
+        `).join('')}
+      </div>
+      <div class="flex flex-wrap justify-center gap-2">
+        ${d.scramblePool.map(item => `
+          <button onclick="pickDuelSpellLetter(${item.id})" class="btn-game w-12 h-12 rounded-xl bg-amber-300 border-2 border-amber-600 font-game text-2xl font-bold">
+            ${item.ch}
+          </button>
+        `).join('')}
+        <button onclick="initDuelSpelling(state.duel.qIdx); render();" class="btn-game px-3 rounded-xl bg-slate-200 font-bold text-xs">RESET</button>
+      </div>
+    `;
+  }
+
+  // MODE 4: SENTENCE BATTLE
+  if (d.mode === 4) {
+    if (!d.sentencePool.length && !d.sentenceAns.length) initDuelSentence(d.qIdx);
+    const item = SENTENCE_BATTLE_ITEMS[d.qIdx % SENTENCE_BATTLE_ITEMS.length];
+    return `
+      <div class="bg-indigo-100 px-4 py-1 rounded-full font-extrabold text-xs text-indigo-900">MODE 4: SENTENCE BATTLE (+150 POIN)</div>
+      <div class="flex items-center gap-3">
+        ${getPetSVG(item.pet, null, false, 'w-20 h-20')}
+        <span class="text-sm font-bold text-slate-600">Susun menjadi kalimat Bahasa Inggris yang benar!</span>
+      </div>
+      <div class="w-full min-h-[54px] bg-sky-50 border-3 border-dashed border-sky-400 rounded-2xl p-2 flex flex-wrap justify-center gap-2 items-center">
+        ${d.sentenceAns.length ? d.sentenceAns.map(w => `<span class="bg-sky-600 text-white px-3 py-1 rounded-xl font-game text-lg font-bold">${w.word}</span>`).join('') : '<span class="text-slate-400 font-bold text-sm">Klik kata-kata di bawah secara berurutan...</span>'}
+      </div>
+      <div class="flex flex-wrap justify-center gap-2">
+        ${d.sentencePool.map(w => `
+          <button onclick="pickDuelSentenceWord(${w.id})" class="btn-game px-3.5 py-2 rounded-xl bg-amber-300 border-2 border-amber-600 font-game text-lg font-bold">
+            ${w.word}
+          </button>
+        `).join('')}
+        <button onclick="initDuelSentence(state.duel.qIdx); render();" class="btn-game px-3 py-2 rounded-xl bg-slate-200 font-bold text-xs">RESET</button>
+      </div>
+    `;
+  }
+
+  // MODE 5: LISTENING BATTLE
+  if (d.mode === 5) {
+    const item = LISTENING_CHALLENGES[d.qIdx % LISTENING_CHALLENGES.length];
+    return `
+      <div class="bg-teal-100 px-4 py-1 rounded-full font-extrabold text-xs text-teal-900">MODE 5: LISTENING BATTLE (+100 POIN)</div>
+      <button onclick="speakEnglish('${item.text.replace(/'/g, "\\'")}')" class="btn-game bg-teal-500 text-white font-game text-xl font-bold px-6 py-3 rounded-full border-3 border-teal-800">
+        🔊 PLAY AUDIO CLUE
+      </button>
+      <div class="grid grid-cols-2 gap-2.5 w-full">
+        ${item.options.map(optId => {
+          const p = PETS.find(x => x.id === optId);
+          return `
+            <button onclick="handleDuelQuickAns('${optId}', '${item.answer}')" class="btn-game p-2 rounded-2xl bg-slate-50 hover:bg-amber-100 border-2 border-slate-300 flex items-center justify-center gap-2">
+              ${getPetSVG(p.id, null, false, 'w-14 h-14')}
+              <span class="font-game text-lg font-bold">${p.name}</span>
+            </button>
+          `;
+        }).join('')}
+      </div>
+    `;
+  }
+
+  // MODE 6: PET SHOW BATTLE (TEACHER JUDGED)
+  if (d.mode === 6) {
+    const p = PETS[d.qIdx % PETS.length];
+    return `
+      <div class="bg-pink-100 px-4 py-1 rounded-full font-extrabold text-xs text-pink-900">MODE 6: PET SHOW SPEAKING BATTLE (MAX 200 POIN)</div>
+      <div class="my-auto flex flex-col items-center">
+        ${getPetSVG(p.id, null, false, 'w-28 h-28')}
+        <div class="font-game text-xl font-bold text-slate-800 mt-1">Deskripsikan hewan ini secara lisan!</div>
+        <div class="text-sm font-extrabold text-sky-700">"It's a ${p.name.toLowerCase()}. It's ${p.color.toLowerCase()}."</div>
+      </div>
+      <div class="flex flex-wrap justify-center gap-2 w-full">
+        <button onclick="judgeDuelSpeaking(200, 'PERFECT!')" class="btn-game px-4 py-2.5 rounded-xl bg-emerald-500 text-white font-game text-lg font-bold border-2 border-emerald-700">🌟 PERFECT (+200)</button>
+        <button onclick="judgeDuelSpeaking(120, 'GOOD!')" class="btn-game px-4 py-2.5 rounded-xl bg-sky-500 text-white font-game text-lg font-bold border-2 border-sky-700">👍 GOOD (+120)</button>
+        <button onclick="audio.sfx('wrong'); state.duel.qIdx++; render();" class="btn-game px-4 py-2.5 rounded-xl bg-amber-400 text-slate-900 font-game text-lg font-bold border-2 border-amber-600">🔄 TRY AGAIN</button>
+      </div>
+    `;
+  }
+
+  // FINAL ROUND: THE FINAL PET CHAMPION (5 PERTANYAAN FINAL)
+  const finalQIdx = d.qIdx % 5;
+  const finalQs = [
+    { pet: 'parrot', q: 'FINAL 1/5: What color is the parrot?', opts: ['Purple', 'Green', 'Brown', 'Gray'], ans: 'Purple' },
+    { pet: 'hamster', q: 'FINAL 2/5: What animal is this?', opts: ['Hamster', 'Rabbit', 'Turtle', 'Fish'], ans: 'Hamster' },
+    { pet: 'turtle', q: 'FINAL 3/5: Complete: "It\'s a turtle. It\'s ___."', opts: ['green', 'orange', 'white', 'purple'], ans: 'green' },
+    { pet: 'bird', q: 'FINAL 4/5: How many legs does a bird have?', opts: ['Two legs', 'Four legs', 'Zero legs', 'Six legs'], ans: 'Two legs' },
+    { pet: 'rabbit', q: 'FINAL 5/5: "It\'s a rabbit. It\'s white." - Correct?', opts: ['YES, TRUE!', 'NO, FALSE'], ans: 'YES, TRUE!' }
+  ];
+  const fq = finalQs[finalQIdx];
+  return `
+    <div class="bg-gradient-to-r from-amber-400 to-rose-500 text-white px-5 py-1 rounded-full font-game text-sm font-bold shadow">🏆 THE FINAL PET CHAMPION (${finalQIdx + 1}/5)</div>
+    <div class="my-auto flex flex-col items-center">
+      ${getPetSVG(fq.pet, null, false, 'w-24 h-24')}
+      <h3 class="font-game text-xl md:text-2xl font-bold text-slate-900 mt-1">${fq.q}</h3>
+    </div>
+    <div class="grid grid-cols-2 gap-2 w-full">
+      ${fq.opts.map(opt => `
+        <button onclick="handleFinalRoundAns('${opt.replace(/'/g, "\\'")}', '${fq.ans.replace(/'/g, "\\'")}', ${finalQIdx})" class="btn-game py-2.5 rounded-xl bg-amber-300 hover:bg-amber-400 text-slate-900 font-game text-lg font-bold border-2 border-amber-600">
+          ${opt}
+        </button>
+      `).join('')}
+    </div>
+  `;
+}
+
+function handleDuelQuickAns(chosen, ans) {
+  if (chosen === ans) {
+    audio.sfx('correct');
+    awardDuelPoints(100);
+    state.duel.qIdx++;
+    render();
+  } else {
+    audio.sfx('wrong');
+    state.duel.activeTeam = state.duel.activeTeam === 'A' ? 'B' : 'A';
+    render();
+  }
+}
+
+function handleDuelGuessPet(chosenId, targetId, pts) {
+  if (chosenId === targetId) {
+    audio.sfx('correct');
+    awardDuelPoints(pts);
+    state.duel.qIdx++;
+    state.duel.clueCount = 1;
+    render();
+  } else {
+    audio.sfx('wrong');
+  }
+}
+
+function initDuelSpelling(idx) {
+  const word = SCRAMBLE_WORDS[idx % SCRAMBLE_WORDS.length];
+  const letters = word.split('').map((ch, i) => ({ id: i, ch }));
+  letters.sort(() => Math.random() - 0.5);
+  state.duel.scramblePool = letters;
+  state.duel.scrambleAns = [];
+}
+
+function pickDuelSpellLetter(id) {
+  audio.sfx('click');
+  const idx = state.duel.scramblePool.findIndex(x => x.id === id);
+  if (idx === -1) return;
+  const [item] = state.duel.scramblePool.splice(idx, 1);
+  state.duel.scrambleAns.push(item);
+
+  const target = SCRAMBLE_WORDS[state.duel.qIdx % SCRAMBLE_WORDS.length];
+  if (state.duel.scrambleAns.length === target.length) {
+    const formed = state.duel.scrambleAns.map(x => x.ch).join('');
+    if (formed === target) {
+      audio.sfx('correct');
+      awardDuelPoints(100);
+      state.duel.qIdx++;
+      initDuelSpelling(state.duel.qIdx);
+    } else {
+      audio.sfx('wrong');
+      initDuelSpelling(state.duel.qIdx);
+    }
+  }
+  render();
+}
+
+function initDuelSentence(idx) {
+  const item = SENTENCE_BATTLE_ITEMS[idx % SENTENCE_BATTLE_ITEMS.length];
+  const pool = item.words.map((word, i) => ({ id: i, word }));
+  pool.sort(() => Math.random() - 0.5);
+  state.duel.sentencePool = pool;
+  state.duel.sentenceAns = [];
+}
+
+function pickDuelSentenceWord(id) {
+  audio.sfx('click');
+  const idx = state.duel.sentencePool.findIndex(x => x.id === id);
+  if (idx === -1) return;
+  const [item] = state.duel.sentencePool.splice(idx, 1);
+  state.duel.sentenceAns.push(item);
+
+  const targetObj = SENTENCE_BATTLE_ITEMS[state.duel.qIdx % SENTENCE_BATTLE_ITEMS.length];
+  if (state.duel.sentencePool.length === 0) {
+    const formed = state.duel.sentenceAns.map(x => x.word).join(' ');
+    if (formed === targetObj.target) {
+      audio.sfx('correct');
+      awardDuelPoints(150);
+      state.duel.qIdx++;
+      initDuelSentence(state.duel.qIdx);
+    } else {
+      audio.sfx('wrong');
+      initDuelSentence(state.duel.qIdx);
+    }
+  }
+  render();
+}
+
+function judgeDuelSpeaking(pts, label) {
+  audio.sfx('correct');
+  speakEnglish(label);
+  awardDuelPoints(pts);
+  state.duel.qIdx++;
+  render();
+}
+
+function handleFinalRoundAns(chosen, ans, finalQIdx) {
+  if (chosen === ans) {
+    audio.sfx('correct');
+    awardDuelPoints(150);
+  } else {
+    audio.sfx('wrong');
+  }
+  if (finalQIdx >= 4) {
+    finishDuelMatch();
+  } else {
+    state.duel.qIdx++;
+    render();
+  }
+}
+
+/**
+ * ============================================================================
+ * 13. HALAMAN 7: SPEAKING CHALLENGE – LOOK AND SPEAK
+ * ============================================================================
+ */
+function renderSpeaking(vp) {
+  document.getElementById('header-title').textContent = 'SPEAKING CHALLENGE';
+  document.getElementById('header-subtitle').textContent = 'Look and Speak • Presentasi Lisan Siswa';
+
+  const pet = PETS[state.speakingPetIdx % PETS.length];
+  const sentence = `This is my pet. It's a ${pet.name.toLowerCase()}. It's ${pet.color.toLowerCase()}.`;
+
+  vp.innerHTML = `
+    <div class="screen-enter w-full h-full flex flex-col justify-between items-center text-center">
+      <!-- Pet Selector Bar -->
+      <div class="flex flex-wrap justify-center gap-2">
+        ${PETS.map((p, idx) => `
+          <button onclick="state.speakingPetIdx=${idx}; audio.sfx('click'); render();" class="btn-game px-3 py-1.5 rounded-xl font-bold text-sm border-2 ${idx === state.speakingPetIdx ? 'bg-pink-600 text-white border-pink-900' : 'bg-white text-slate-800 border-pink-300'}">
+            ${p.emoji} ${p.name}
+          </button>
+        `).join('')}
+      </div>
+
+      <!-- Main Speaking Stage -->
+      <div class="my-auto grid grid-cols-1 md:grid-cols-12 gap-6 items-center max-w-5xl w-full bg-white/95 p-6 rounded-3xl border-4 border-pink-400 shadow-xl">
+        <div class="md:col-span-5 flex flex-col items-center bg-pink-50 p-4 rounded-3xl border-2 border-pink-200">
+          <div class="animate-pet">${getPetSVG(pet.id, null, false, 'w-36 h-36 md:w-44 md:h-44')}</div>
+          <span class="font-game text-2xl font-bold text-pink-900 mt-1">${pet.name}</span>
+        </div>
+
+        <div class="md:col-span-7 flex flex-col gap-3 text-left">
+          <div class="flex items-center justify-between">
+            <span class="font-extrabold text-sm text-pink-600 uppercase">Template Berbicara di Depan PID:</span>
+            <button onclick="state.showSpeakingText = !state.showSpeakingText; audio.sfx('click'); render();" class="btn-game px-3 py-1 rounded-xl bg-slate-200 text-slate-800 font-bold text-xs">
+              ${state.showSpeakingText ? '🙈 HIDE SENTENCE' : '👁️ SHOW SENTENCE'}
+            </button>
+          </div>
+
+          <div class="bg-amber-50 p-4 rounded-2xl border-3 border-amber-300 font-game text-2xl md:text-3xl font-bold text-slate-800 space-y-1">
+            ${state.showSpeakingText ? `
+              <div>"This is my pet."</div>
+              <div>"It's a <span class="text-rose-600">${pet.name.toLowerCase()}</span>."</div>
+              <div>"It's <span class="text-indigo-600">${pet.color.toLowerCase()}</span>."</div>
+            ` : `
+              <div class="text-slate-400 italic text-xl py-4 text-center">Mode Tantangan Hafalan! Siswa berbicara tanpa teks...</div>
+            `}
+          </div>
+
+          <!-- Audio & Microphone Practice -->
+          <div class="flex flex-wrap gap-2">
+            <button onclick="speakEnglish('${sentence.replace(/'/g, "\\'")}')" class="btn-game px-4 py-2 rounded-xl bg-sky-500 text-white font-bold text-sm md:text-base border-2 border-sky-700">
+              🔊 LISTEN TO EXAMPLE
+            </button>
+            <button onclick="startSpeechPractice()" class="btn-game px-4 py-2 rounded-xl bg-purple-600 text-white font-bold text-sm md:text-base border-2 border-purple-800">
+              🎙️ PRACTICE (MIC)
+            </button>
+            <button onclick="state.speakingPetIdx = (state.speakingPetIdx + 1) % PETS.length; audio.sfx('click'); render();" class="btn-game px-4 py-2 rounded-xl bg-amber-400 text-slate-900 font-bold text-sm md:text-base border-2 border-amber-600">
+              NEXT PET ➡️
+            </button>
+          </div>
+
+          ${state.speechTranscript ? `<div class="text-xs font-extrabold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-300">🎙️ Terdeteksi: "${state.speechTranscript}"</div>` : ''}
+        </div>
+      </div>
+
+      <!-- Teacher Appreciation Buttons -->
+      <div class="flex flex-wrap justify-center gap-3">
+        <button onclick="giveSpeakingPraise('EXCELLENT!', true)" class="btn-game px-5 py-2.5 rounded-2xl bg-emerald-500 text-white font-game text-lg font-bold border-2 border-emerald-700">🌟 EXCELLENT!</button>
+        <button onclick="giveSpeakingPraise('VERY GOOD!', false)" class="btn-game px-5 py-2.5 rounded-2xl bg-sky-500 text-white font-game text-lg font-bold border-2 border-sky-700">👏 VERY GOOD!</button>
+        <button onclick="giveSpeakingPraise('GOOD JOB!', false)" class="btn-game px-5 py-2.5 rounded-2xl bg-amber-400 text-slate-900 font-game text-lg font-bold border-2 border-amber-600">👍 GOOD JOB!</button>
+        <button onclick="audio.sfx('wrong'); speakEnglish('Let us try again together!');" class="btn-game px-5 py-2.5 rounded-2xl bg-rose-500 text-white font-game text-lg font-bold border-2 border-rose-700">🔄 TRY AGAIN!</button>
+      </div>
+    </div>
+  `;
+}
+
+function startSpeechPractice() {
+  audio.sfx('click');
+  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRec) {
+    state.speechTranscript = 'Mode Lisan Kelas Aktif (Mikrofon browser tidak tersedia, guru menilai langsung).';
+    render();
+    return;
+  }
+  const rec = new SpeechRec();
+  rec.lang = 'en-US';
+  state.speechTranscript = 'Mendengarkan suara siswa...';
+  render();
+  rec.onresult = (e) => {
+    state.speechTranscript = e.results[0][0].transcript;
+    audio.sfx('correct');
+    render();
+  };
+  rec.onerror = () => {
+    state.speechTranscript = 'Silakan ucapkan dengan lantang di depan kelas!';
+    render();
+  };
+  rec.start();
+}
+
+function giveSpeakingPraise(msg, bigCelebration) {
+  audio.sfx('star');
+  speakEnglish(msg);
+  if (bigCelebration) {
+    triggerConfetti(2200);
+    unlockBadge('speaking', false);
+  }
+  showFeedback('🎤', msg, 'Penampilan berbicara Bahasa Inggris yang hebat di depan kelas!');
+}
+
+/**
+ * ============================================================================
+ * 14. HALAMAN 8: TEACHER ASSESSMENT (RUBRIK PENILAIAN UNJUK KERJA RPP)
+ * ============================================================================
+ */
+function renderAssessment(vp) {
+  document.getElementById('header-title').textContent = 'TEACHER ASSESSMENT';
+  document.getElementById('header-subtitle').textContent = 'Rubrik Penilaian Berbicara Sesuai RPP (Skor 4 – 12)';
+
+  const indicators = [
+    { id: 'ind1', label: '1. Menyebutkan jenis hewan' },
+    { id: 'ind2', label: '2. Menyebutkan warna hewan' },
+    { id: 'ind3', label: '3. Menggunakan kalimat sederhana' },
+    { id: 'ind4', label: '4. Pelafalan yang dapat dipahami' }
+  ];
+
+  vp.innerHTML = `
+    <div class="screen-enter w-full h-full grid grid-cols-1 lg:grid-cols-12 gap-4 overflow-hidden">
+      <!-- Left: Input Form & 4 Rubrik Indikator -->
+      <div class="lg:col-span-6 bg-white/95 rounded-3xl border-4 border-teal-500 p-4 flex flex-col justify-between shadow-lg overflow-y-auto custom-scroll">
+        <div class="grid grid-cols-2 gap-2.5">
+          <div>
+            <label class="block text-xs font-extrabold text-slate-600 uppercase">Nama Siswa</label>
+            <input id="ass-student-name" type="text" placeholder="Contoh: Renai / Bima" class="w-full px-3 py-2 rounded-xl border-2 border-teal-300 font-bold text-slate-900" />
+          </div>
+          <div>
+            <label class="block text-xs font-extrabold text-slate-600 uppercase">Hewan yang Dideskripsikan</label>
+            <select id="ass-pet" class="w-full px-3 py-2 rounded-xl border-2 border-teal-300 font-bold text-slate-900">
+              ${PETS.map(p => `<option value="${p.name}">${p.name} (${p.color})</option>`).join('')}
+            </select>
+          </div>
+        </div>
+
+        <!-- 4 Indikator Rubrik (Skor 3, 2, 1) -->
+        <div class="space-y-2 my-2">
+          <div class="text-xs font-extrabold text-teal-800 bg-teal-50 px-3 py-1 rounded-lg">
+            Skor: 3 = Berkembang Sesuai Harapan | 2 = Mulai Berkembang | 1 = Perlu Bimbingan
+          </div>
+          ${indicators.map(ind => `
+            <div class="flex items-center justify-between bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200">
+              <span class="font-bold text-xs md:text-sm text-slate-800">${ind.label}</span>
+              <div class="flex gap-1.5">
+                ${[3, 2, 1].map(val => `
+                  <label class="cursor-pointer">
+                    <input type="radio" name="${ind.id}" value="${val}" ${val === 3 ? 'checked' : ''} onchange="updateLiveAssessmentTotal()" class="peer hidden" />
+                    <span class="px-3 py-1 rounded-lg border-2 border-slate-300 font-black text-sm peer-checked:bg-teal-600 peer-checked:text-white peer-checked:border-teal-800 inline-block">
+                      ${val}
+                    </span>
+                  </label>
+                `).join('')}
+              </div>
+            </div>
+          `).join('')}
+        </div>
+
+        <div class="flex items-center gap-2">
+          <input id="ass-note" type="text" placeholder="Catatan guru (opsional)..." class="flex-1 px-3 py-2 rounded-xl border-2 border-slate-300 text-sm font-bold" />
+          <div class="bg-amber-100 border-2 border-amber-400 px-3 py-1.5 rounded-xl font-game text-lg font-bold text-amber-900">
+            Total: <span id="ass-live-total">12</span>/12
+          </div>
+        </div>
+
+        <div class="flex flex-wrap gap-2 mt-2">
+          <button onclick="saveStudentAssessment(false)" class="btn-game flex-1 py-2 rounded-xl bg-teal-600 text-white font-game text-lg font-bold border-2 border-teal-800">💾 SAVE ASSESSMENT</button>
+          <button onclick="saveStudentAssessment(true)" class="btn-game px-4 py-2 rounded-xl bg-amber-400 text-slate-900 font-game text-lg font-bold border-2 border-amber-600">➕ NEXT STUDENT</button>
+        </div>
+      </div>
+
+      <!-- Right: Assessment Table & CSV Export -->
+      <div class="lg:col-span-6 bg-white/95 rounded-3xl border-4 border-sky-400 p-4 flex flex-col justify-between shadow-lg overflow-hidden">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="font-game text-xl font-bold text-sky-900">📊 Rekap Nilai Siswa (${state.assessments.length})</h3>
+          <div class="flex gap-2">
+            <button onclick="exportAssessmentsCSV()" class="btn-game px-3 py-1.5 rounded-xl bg-emerald-500 text-white font-extrabold text-xs border-2 border-emerald-700">📥 EXPORT CSV</button>
+            <button onclick="resetAssessmentsTable()" class="btn-game px-3 py-1.5 rounded-xl bg-rose-100 text-rose-700 font-extrabold text-xs border border-rose-300">🗑️ RESET</button>
+          </div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto custom-scroll border-2 border-slate-200 rounded-2xl">
+          <table class="w-full text-left border-collapse text-xs md:text-sm">
+            <thead class="bg-sky-100 text-sky-900 font-extrabold sticky top-0">
+              <tr>
+                <th class="p-2">Nama</th>
+                <th class="p-2">Hewan</th>
+                <th class="p-2 text-center">I1</th>
+                <th class="p-2 text-center">I2</th>
+                <th class="p-2 text-center">I3</th>
+                <th class="p-2 text-center">I4</th>
+                <th class="p-2 text-center">Total</th>
+                <th class="p-2">Predikat</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${state.assessments.length === 0 ? `
+                <tr><td colspan="8" class="p-6 text-center text-slate-400 font-bold">Belum ada data penilaian siswa. Silakan input di panel kiri.</td></tr>
+              ` : state.assessments.map(a => `
+                <tr class="border-t border-slate-200 font-bold hover:bg-slate-50">
+                  <td class="p-2 text-slate-900">${a.name}</td>
+                  <td class="p-2 text-slate-600">${a.pet}</td>
+                  <td class="p-2 text-center">${a.i1}</td>
+                  <td class="p-2 text-center">${a.i2}</td>
+                  <td class="p-2 text-center">${a.i3}</td>
+                  <td class="p-2 text-center">${a.i4}</td>
+                  <td class="p-2 text-center font-black text-teal-700">${a.total}/12</td>
+                  <td class="p-2"><span class="px-2 py-0.5 rounded-full text-[11px] ${a.total >= 10 ? 'bg-emerald-100 text-emerald-800' : (a.total >= 7 ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800')}">${a.predikat}</span></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function updateLiveAssessmentTotal() {
+  const getVal = (name) => parseInt(document.querySelector(`input[name="${name}"]:checked`)?.value || 3);
+  const sum = getVal('ind1') + getVal('ind2') + getVal('ind3') + getVal('ind4');
+  const el = document.getElementById('ass-live-total');
+  if (el) el.textContent = sum;
+}
+
+function saveStudentAssessment(clearForNext) {
+  const nameInput = document.getElementById('ass-student-name');
+  const name = nameInput.value.trim() || `Siswa ${state.assessments.length + 1}`;
+  const pet = document.getElementById('ass-pet').value;
+  const note = document.getElementById('ass-note').value.trim();
+  const getVal = (n) => parseInt(document.querySelector(`input[name="${n}"]:checked`)?.value || 3);
+  const i1 = getVal('ind1'), i2 = getVal('ind2'), i3 = getVal('ind3'), i4 = getVal('ind4');
+  const total = i1 + i2 + i3 + i4;
+  const predikat = total >= 10 ? 'Sangat Baik' : (total >= 7 ? 'Berkembang' : 'Bimbingan');
+
+  state.assessments.unshift({ name, pet, i1, i2, i3, i4, total, predikat, note });
+  persistData();
+  audio.sfx('correct');
+
+  if (clearForNext) {
+    render();
+    setTimeout(() => {
+      const inp = document.getElementById('ass-student-name');
+      if (inp) inp.focus();
+    }, 50);
+  } else {
+    render();
+  }
+}
+
+function resetAssessmentsTable() {
+  audio.sfx('wrong');
+  state.assessments = [];
+  persistData();
+  render();
+}
+
+function exportAssessmentsCSV() {
+  audio.sfx('click');
+  if (!state.assessments.length) {
+    showFeedback('ℹ️', 'DATA KOSONG', 'Belum ada nilai siswa untuk diekspor ke CSV.');
+    return;
+  }
+  const headers = ['Nama Siswa', 'Hewan', 'Indikator 1', 'Indikator 2', 'Indikator 3', 'Indikator 4', 'Total Skor', 'Predikat', 'Catatan'];
+  const rows = state.assessments.map(a => [a.name, a.pet, a.i1, a.i2, a.i3, a.i4, a.total, a.predikat, `"${a.note || ''}"`].join(','));
+  const csv = [headers.join(','), ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'Penilaian_Bahasa_Inggris_Kelas3_MyPet.csv';
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * ============================================================================
+ * 15. HALAMAN 9: REFLECTION & EXIT
+ * ============================================================================
+ */
+function renderReflection(vp) {
+  document.getElementById('header-title').textContent = 'CLASS REFLECTION';
+  document.getElementById('header-subtitle').textContent = 'Refleksi Akhir Pembelajaran Hari Ini';
+
+  const questions = [
+    "1. What did you learn about pets today?",
+    "2. Can you describe your favorite pet in English?",
+    "3. Which game was your favorite?",
+    "4. What do you want to practice again?"
+  ];
+
+  vp.innerHTML = `
+    <div class="screen-enter w-full h-full flex flex-col justify-between items-center text-center">
+      <div class="bg-white/95 rounded-3xl border-4 border-sky-400 p-5 max-w-5xl w-full shadow-xl">
+        <h2 class="font-game text-3xl md:text-4xl font-bold text-sky-900 mb-3">🌈 LET'S REFLECT ON OUR LEARNING!</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-left">
+          ${questions.map(q => `
+            <div onclick="speakEnglish('${q.slice(3)}')" class="btn-game bg-sky-50 px-4 py-2.5 rounded-2xl border-2 border-sky-200 font-bold text-base md:text-lg text-slate-800 flex items-center justify-between">
+              <span>${q}</span>
+              <span>🔊</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      <!-- Interactive Emoticon Voting on PID -->
+      <div class="grid grid-cols-3 gap-5 max-w-5xl w-full my-auto">
+        <button onclick="voteReflection('can')" class="btn-game bg-emerald-400 hover:bg-emerald-300 text-slate-900 rounded-3xl p-5 border-4 border-emerald-700 flex flex-col items-center">
+          <span class="text-6xl md:text-7xl mb-2">😊</span>
+          <span class="font-game text-xl md:text-2xl font-bold">I CAN DO IT!</span>
+          <span class="mt-2 bg-white px-4 py-1 rounded-full font-black text-emerald-800 text-lg">${state.reflectionCounts.can} Siswa</span>
+        </button>
+
+        <button onclick="voteReflection('practice')" class="btn-game bg-amber-300 hover:bg-amber-200 text-slate-900 rounded-3xl p-5 border-4 border-amber-600 flex flex-col items-center">
+          <span class="text-6xl md:text-7xl mb-2">🙂</span>
+          <span class="font-game text-xl md:text-2xl font-bold">I NEED MORE PRACTICE</span>
+          <span class="mt-2 bg-white px-4 py-1 rounded-full font-black text-amber-800 text-lg">${state.reflectionCounts.practice} Siswa</span>
+        </button>
+
+        <button onclick="voteReflection('help')" class="btn-game bg-rose-400 hover:bg-rose-300 text-slate-900 rounded-3xl p-5 border-4 border-rose-700 flex flex-col items-center">
+          <span class="text-6xl md:text-7xl mb-2">😐</span>
+          <span class="font-game text-xl md:text-2xl font-bold">I NEED HELP</span>
+          <span class="mt-2 bg-white px-4 py-1 rounded-full font-black text-rose-800 text-lg">${state.reflectionCounts.help} Siswa</span>
+        </button>
+      </div>
+
+      <!-- Exit / Back to Welcome Screen -->
+      <div class="flex gap-4">
+        <button onclick="navigateHome()" class="btn-game px-6 py-2.5 rounded-2xl bg-sky-500 text-white font-game text-xl font-bold border-2 border-sky-700">🏠 BACK TO DASHBOARD</button>
+        <button onclick="audio.stopBgm(); goToScreen('welcome', false);" class="btn-game px-6 py-2.5 rounded-2xl bg-slate-800 text-white font-game text-xl font-bold border-2 border-slate-950">🚪 EXIT TO COVER</button>
+      </div>
+    </div>
+  `;
+}
+
+function voteReflection(type) {
+  audio.sfx('star');
+  state.reflectionCounts[type]++;
+  if (type === 'can') triggerConfetti(1500);
+  render();
+}
+
+/**
+ * ============================================================================
+ * 16. MAIN RENDER ROUTER & INITIALIZATION
+ * ============================================================================
+ */
+function render() {
+  const vp = document.getElementById('app-viewport');
+  updateBadgeCount();
+
+  switch (state.screen) {
+    case 'welcome': renderWelcome(vp); break;
+    case 'dashboard': renderDashboard(vp); break;
+    case 'learn': renderLearn(vp); break;
+    case 'listen': renderListeningGame(vp); break;
+    case 'indiv_hub': renderIndivHub(vp); break;
+    case 'indiv_quiz': renderIndivQuiz(vp); break;
+    case 'indiv_color': renderIndivColor(vp); break;
+    case 'indiv_scramble': renderIndivScramble(vp); break;
+    case 'indiv_read': renderIndivRead(vp); break;
+    case 'duel': renderDuel(vp); break;
+    case 'speaking': renderSpeaking(vp); break;
+    case 'assessment': renderAssessment(vp); break;
+    case 'reflection': renderReflection(vp); break;
+    default: renderDashboard(vp);
+  }
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  loadSavedData();
+  render();
+});
+</script>
+</body>
+</html>
